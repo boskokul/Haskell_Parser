@@ -17,11 +17,13 @@ data ABinOp = Add
 
 data Stmt = Sequence [Stmt]
           | Assign String ArithmeticExpr
+          | LetIn Stmt Stmt
             deriving (Show)
 
 languageDef = emptyDef  { Token.identStart      = letter
                         , Token.identLetter     = alphaNum
                         , Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">" ]
+                        , Token.reservedNames = ["let", "in"]
                         }
 
 lexer = Token.makeTokenParser languageDef
@@ -33,6 +35,8 @@ reservedOpParser = Token.reservedOp lexer
 parensParser     = Token.parens     lexer
 
 integerParser    = Token.integer    lexer
+
+reservedParser   = Token.reserved   lexer
 
 haskellParser :: Parser Stmt
 haskellParser = statement
@@ -46,13 +50,21 @@ sequenceOfStmt =
      return $ if length list == 1 then head list else Sequence list
 
 subStatement :: Parser Stmt
-subStatement =   assignStmt
+subStatement = do
+  try letInStmt <|> assignStmt
 
 assignStmt :: Parser Stmt
 assignStmt =
   do var  <- identifierParser
      reservedOpParser "="
      Assign var <$> aExpression
+
+letInStmt :: Parser Stmt
+letInStmt =
+  do reservedParser "let"
+     stmt1 <- statement
+     reservedParser "in"
+     LetIn stmt1 <$> statement
 
 
 aExpression :: Parser ArithmeticExpr
