@@ -18,11 +18,20 @@ data ABinOp = Add
 data Stmt = Sequence [Stmt]
           | Assign String ArithmeticExpr
           | LetIn Stmt Stmt
+          | TypeDeclaration String Type
             deriving (Show)
+
+data Type = RegularType String 
+            | ListType String
+            | FunctionType [Type]
+              deriving (Show)
+
+acceptableTypes :: [String]
+acceptableTypes = ["Integer", "String", "Bool"]
 
 languageDef = emptyDef  { Token.identStart      = letter
                         , Token.identLetter     = alphaNum
-                        , Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">" ]
+                        , Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "::" ]
                         , Token.reservedNames = ["let", "in"]
                         }
 
@@ -32,13 +41,13 @@ identifierParser = Token.identifier lexer
 
 reservedOpParser = Token.reservedOp lexer
 
-parensParser     = Token.parens     lexer
+parensParser = Token.parens lexer
 
-integerParser    = Token.integer    lexer
+integerParser = Token.integer lexer
 
-reservedParser   = Token.reserved   lexer
+reservedParser = Token.reserved lexer
 
-semiParser       = Token.semi       lexer
+semiParser = Token.semi lexer
 
 haskellParser :: Parser Stmt
 haskellParser = statement
@@ -53,17 +62,11 @@ sequenceOfStmt =
 
 subStatement :: Parser Stmt
 subStatement = do
-  try letInStmt <|> assignStmt
+  try typeStmt <|> letInStmt <|> assignStmt
 
 embeddedStmt =
   do list <- (subStatement <* spaces) `sepBy1` semiParser
      return $ if length list == 1 then head list else Sequence list
-
-assignStmt :: Parser Stmt
-assignStmt =
-  do var  <- identifierParser
-     reservedOpParser "="
-     Assign var <$> aExpression
 
 letInStmt :: Parser Stmt
 letInStmt =
@@ -75,6 +78,42 @@ letInStmt =
         Nothing -> fail "missing in clause"
      return $ LetIn stmt1 pairsIn
 
+parseRegularType :: Parser Type
+parseRegularType = do
+    typ <- many1 letter
+    if typ `elem` acceptableTypes
+        then return $ RegularType typ
+        else fail $ "Invalid type: " ++ typ
+
+parseListType :: Parser Type
+parseListType = do
+    _ <- char '['
+    typ <- many1 letter
+    _ <- char ']'
+    if typ `elem` acceptableTypes
+        then return $ ListType typ
+        else fail $ "Invalid type: " ++ typ
+
+parseArgType :: Parser Type
+parseArgType = parseRegularType  <|> parseListType
+
+parseFunctionType :: Parser Type
+parseFunctionType = do
+    argTypes <- (parseArgType <* spaces) `sepBy1` reservedOpParser "->" 
+    return $ if length argTypes == 1 then head argTypes else FunctionType argTypes
+
+typeStmt :: Parser Stmt
+typeStmt =
+  do var  <- identifierParser
+     reservedOpParser "::"
+     typeName <- try parseFunctionType <|> parseRegularType <|> parseListType
+     return $ TypeDeclaration var typeName
+
+assignStmt :: Parser Stmt
+assignStmt =
+  do var  <- identifierParser
+     reservedOpParser "="
+     Assign var <$> aExpression
 
 aExpression :: Parser ArithmeticExpr
 aExpression = buildExpressionParser aOperators aTerm
