@@ -38,6 +38,8 @@ integerParser    = Token.integer    lexer
 
 reservedParser   = Token.reserved   lexer
 
+semiParser       = Token.semi       lexer
+
 haskellParser :: Parser Stmt
 haskellParser = statement
 
@@ -53,6 +55,10 @@ subStatement :: Parser Stmt
 subStatement = do
   try letInStmt <|> assignStmt
 
+embeddedStmt =
+  do list <- (subStatement <* spaces) `sepBy1` semiParser
+     return $ if length list == 1 then head list else Sequence list
+
 assignStmt :: Parser Stmt
 assignStmt =
   do var  <- identifierParser
@@ -62,9 +68,12 @@ assignStmt =
 letInStmt :: Parser Stmt
 letInStmt =
   do reservedParser "let"
-     stmt1 <- statement
-     reservedParser "in"
-     LetIn stmt1 <$> statement
+     stmt1 <- embeddedStmt
+     mIn <- optionMaybe (try (reservedParser "in"))
+     pairsIn <- case mIn of
+        Just _ -> embeddedStmt
+        Nothing -> fail "missing in clause"
+     return $ LetIn stmt1 pairsIn
 
 
 aExpression :: Parser ArithmeticExpr
