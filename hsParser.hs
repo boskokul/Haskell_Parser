@@ -7,6 +7,7 @@ data ArithmeticExpr = Var String
            | IntConst Integer
            | Negative ArithmeticExpr
            | ABinary ABinOp ArithmeticExpr ArithmeticExpr
+           | FunctionCall String String
               deriving (Show)
 
 data ABinOp = Add
@@ -22,7 +23,7 @@ data Stmt = Sequence [Stmt]
           | NoWhere
             deriving (Show)
 
-data Type = RegularType String 
+data Type = RegularType String
             | ListType String
             | FunctionType [Type]
               deriving (Show)
@@ -100,7 +101,7 @@ parseArgType = parseRegularType  <|> parseListType
 
 parseFunctionType :: Parser Type
 parseFunctionType = do
-    argTypes <- (parseArgType <* spaces) `sepBy1` reservedOpParser "->" 
+    argTypes <- (parseArgType <* spaces) `sepBy1` reservedOpParser "->"
     return $ if length argTypes == 1 then head argTypes else FunctionType argTypes
 
 typeStmt :: Parser Stmt
@@ -110,12 +111,19 @@ typeStmt =
      typeName <- try parseFunctionType <|> parseRegularType <|> parseListType
      return $ TypeDeclaration var typeName
 
+embeddedFunctionCallArgs =
+  do (identifierParser <* spaces) `sepBy1` semiParser
+
+functionCall :: Parser ArithmeticExpr
+functionCall =
+  do f1  <- identifierParser
+     FunctionCall f1 <$> identifierParser
 
 assignStmt :: Parser Stmt
 assignStmt =
   do var  <- identifierParser
      reservedOpParser "="
-     expr <- aExpression
+     expr <- try functionCall <|> aExpression
      mWhere <- optionMaybe (try (reservedParser "where"))
      pairsWhere <- case mWhere of
         Just _ -> embeddedStmt
