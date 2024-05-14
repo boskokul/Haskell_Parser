@@ -16,9 +16,10 @@ data ABinOp = Add
                 deriving (Show)
 
 data Stmt = Sequence [Stmt]
-          | Assign String ArithmeticExpr
+          | Assign String ArithmeticExpr Stmt
           | LetIn Stmt Stmt
           | TypeDeclaration String Type
+          | NoWhere
             deriving (Show)
 
 data Type = RegularType String 
@@ -32,7 +33,7 @@ acceptableTypes = ["Integer", "String", "Bool"]
 languageDef = emptyDef  { Token.identStart      = letter
                         , Token.identLetter     = alphaNum
                         , Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "::" ]
-                        , Token.reservedNames = ["let", "in"]
+                        , Token.reservedNames = ["let", "in", "where"]
                         }
 
 lexer = Token.makeTokenParser languageDef
@@ -109,11 +110,17 @@ typeStmt =
      typeName <- try parseFunctionType <|> parseRegularType <|> parseListType
      return $ TypeDeclaration var typeName
 
+
 assignStmt :: Parser Stmt
 assignStmt =
   do var  <- identifierParser
      reservedOpParser "="
-     Assign var <$> aExpression
+     expr <- aExpression
+     mWhere <- optionMaybe (try (reservedParser "where"))
+     pairsWhere <- case mWhere of
+        Just _ -> embeddedStmt
+        Nothing -> return NoWhere
+     return $ Assign var expr pairsWhere
 
 aExpression :: Parser ArithmeticExpr
 aExpression = buildExpressionParser aOperators aTerm

@@ -1,5 +1,6 @@
-b = 4
 b :: Integer
+b = 4
+c = 4 where a = 3; b = 5
 a = -6 + 1
 p :: [Bool]
 f1 :: [Integer]-> Bool -> String
