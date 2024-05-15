@@ -44,6 +44,7 @@ data Stmt = Sequence [Stmt]
           | LetIn Stmt Stmt
           | TypeDeclaration String Type
           | If LogicalExpr Stmt Stmt
+          | FunctionDeclaration String [String] ArithmeticExpr
           | NoWhere
             deriving (Show)
 
@@ -56,7 +57,6 @@ languageDef = emptyDef  {  Token.commentStart    = "{-",
                            Token.commentLine     = "--",
                            Token.identStart      = letter,
                            Token.identLetter     = alphaNum,
-                           Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "<=", ">=", "!=", "==", "&&", "||", "not", "::", "->" ],
                            Token.reservedNames = ["let", "in", "where", "True", "False", "if", "then", "else"]
                         }
 
@@ -87,7 +87,7 @@ sequenceOfStmt =
 
 subStatement :: Parser Stmt
 subStatement = do
-  try typeStmt <|> letInStmt <|> assignStmt <|> ifStmt
+  try assignStmt <|> try typeStmt <|> functionDeclaration <|> letInStmt <|> ifStmt 
 
 embeddedStmt =
   do list <- (subStatement <* spaces) `sepBy1` semiParser
@@ -130,7 +130,7 @@ parseFunctionType = do
 typeStmt :: Parser Stmt
 typeStmt =
   do var  <- identifierParser
-     reservedOpParser "::"
+     _ <- reservedOpParser "::"
      typeName <- try parseFunctionType <|> parseRegularType <|> parseListType
      return $ TypeDeclaration var typeName
 
@@ -184,10 +184,20 @@ rOperator =  (reservedOpParser ">" >> return Greater)
          <|> (reservedOpParser "!=" >> return NotEqual)
 
 
+parseArguments = many (many space *> identifierParser <* many space)
+
+functionDeclaration :: Parser Stmt
+functionDeclaration = do
+    name <- identifierParser
+    args <- parseArguments
+    _ <- reservedOpParser "="
+    body <- try aExpression
+    return (FunctionDeclaration name args body)
+
 assignStmt :: Parser Stmt
 assignStmt =
   do var  <- identifierParser
-     reservedOpParser "="
+     _ <- reservedOpParser "="
      expr <- try functionCall <|> aExpression
      mWhere <- optionMaybe (try (reservedParser "where"))
      pairsWhere <- case mWhere of
