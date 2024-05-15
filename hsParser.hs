@@ -56,7 +56,7 @@ languageDef = emptyDef  {  Token.commentStart    = "{-",
                            Token.commentLine     = "--",
                            Token.identStart      = letter,
                            Token.identLetter     = alphaNum,
-                           Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "<=", ">=", "!=", "==", "::", "->" ],
+                           Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "<=", ">=", "!=", "==", "&&", "||", "not", "::", "->" ],
                            Token.reservedNames = ["let", "in", "where", "True", "False", "if", "then", "else"]
                         }
 
@@ -160,8 +160,9 @@ ifStmt =
 logicalExpression :: Parser LogicalExpr
 logicalExpression = buildExpressionParser lOperators lTerm
 
-lOperators = [ [Infix  (reservedOpParser "and" >> return (LogicalBinary And     )) AssocLeft,
-                Infix  (reservedOpParser "or"  >> return (LogicalBinary Or      )) AssocLeft]
+lOperators = [ [Prefix (reservedOpParser "not" >> return Not)],
+               [Infix  (reservedOpParser "&&" >> return (LogicalBinary And)) AssocLeft,
+                Infix  (reservedOpParser "||"  >> return (LogicalBinary Or)) AssocLeft]
              ]
 
 lTerm =  parensParser logicalExpression
