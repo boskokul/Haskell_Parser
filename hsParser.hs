@@ -6,30 +6,39 @@ import Text.ParserCombinators.Parsec.Token as Token
 data ArithmeticExpr = Var String
            | IntConst Integer
            | Negative ArithmeticExpr
-           | ArithmeticBinary ABinOp ArithmeticExpr ArithmeticExpr
+           | ArithmeticBinary ArithmBinOp ArithmeticExpr ArithmeticExpr
            | FunctionCall String String
               deriving (Show)
 
-data ABinOp = Add
+data ArithmBinOp = Add
             | Subtract
             | Multiply
             | Divide
                 deriving (Show)
 
 data LogicalExpr = BoolConst Bool
-                | Not LogicalExpr
-                | LogicalBinary LogicalBinOp LogicalExpr LogicalExpr
+               | Not LogicalExpr
+               | LogicalBinary LogicalBinOp LogicalExpr LogicalExpr
+               | RelationalBinary RelationalBinOp ArithmeticExpr ArithmeticExpr
                 deriving (Show)
 
-data LogicalBinOp = And 
-                  | Or 
+data LogicalBinOp = And
+                  | Or
                   deriving (Show)
+
+data RelationalBinOp = Greater
+                     | Less
+                     | GreaterEqual
+                     | LessEqual
+                     | Equal
+                     | NotEqual
+                     deriving (Show)
 
 data Type = RegularType String
             | ListType String
             | FunctionType [Type]
               deriving (Show)
-              
+
 data Stmt = Sequence [Stmt]
           | Assign String ArithmeticExpr Stmt
           | LetIn Stmt Stmt
@@ -42,12 +51,12 @@ data Stmt = Sequence [Stmt]
 acceptableTypes :: [String]
 acceptableTypes = ["Integer", "String", "Bool"]
 
-languageDef = emptyDef  {  Token.commentStart    = "{-", 
+languageDef = emptyDef  {  Token.commentStart    = "{-",
                            Token.commentEnd      = "-}",
                            Token.commentLine     = "--",
                            Token.identStart      = letter,
                            Token.identLetter     = alphaNum,
-                           Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "::", "->" ],
+                           Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "<=", ">=", "!=", "==", "::", "->" ],
                            Token.reservedNames = ["let", "in", "where", "True", "False", "if", "then", "else"]
                         }
 
@@ -149,16 +158,29 @@ ifStmt =
      return $ If cond stmt1 stmt2
 
 logicalExpression :: Parser LogicalExpr
-logicalExpression = buildExpressionParser bOperators bTerm
+logicalExpression = buildExpressionParser lOperators lTerm
 
-bOperators = [ [Infix  (reservedOpParser "and" >> return (LogicalBinary And     )) AssocLeft,
+lOperators = [ [Infix  (reservedOpParser "and" >> return (LogicalBinary And     )) AssocLeft,
                 Infix  (reservedOpParser "or"  >> return (LogicalBinary Or      )) AssocLeft]
              ]
 
-bTerm =  parensParser logicalExpression
+lTerm =  parensParser logicalExpression
      <|> (reservedParser "True"  >> return (BoolConst True ))
      <|> (reservedParser "False" >> return (BoolConst False))
+     <|> rExpression
 
+
+rExpression =
+  do a1 <- aExpression
+     op <- rOperator
+     RelationalBinary op a1 <$> aExpression
+
+rOperator =  (reservedOpParser ">" >> return Greater)
+         <|> (reservedOpParser "<" >> return Less)
+         <|> (reservedOpParser ">=" >> return GreaterEqual)
+         <|> (reservedOpParser "<=" >> return LessEqual)
+         <|> (reservedOpParser "==" >> return Equal)
+         <|> (reservedOpParser "!=" >> return NotEqual)
 
 
 assignStmt :: Parser Stmt
