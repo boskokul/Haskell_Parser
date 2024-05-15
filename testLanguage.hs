@@ -1,9 +1,13 @@
 b :: Integer
 b = 4
 c = 4 where a = 3; b = 5
+-- comment in line
 a = -6 + 1
 p :: [Bool]
 p = f b
+{- 
+    block type of comment
+-}
 f1 :: [Integer]-> Bool -> String
 f1 = 2 + b + c
 a = f1 b

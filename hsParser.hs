@@ -42,10 +42,13 @@ data Stmt = Sequence [Stmt]
 acceptableTypes :: [String]
 acceptableTypes = ["Integer", "String", "Bool"]
 
-languageDef = emptyDef  { Token.identStart      = letter
-                        , Token.identLetter     = alphaNum
-                        , Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "::", "->" ]
-                        , Token.reservedNames = ["let", "in", "where", "True", "False", "if", "then", "else"]
+languageDef = emptyDef  {  Token.commentStart    = "{-", 
+                           Token.commentEnd      = "-}",
+                           Token.commentLine     = "--",
+                           Token.identStart      = letter,
+                           Token.identLetter     = alphaNum,
+                           Token.reservedOpNames = ["+", "-", "*", "/", "=", "<", ">", "::", "->" ],
+                           Token.reservedNames = ["let", "in", "where", "True", "False", "if", "then", "else"]
                         }
 
 lexer = Token.makeTokenParser languageDef
