@@ -10,6 +10,9 @@ p = f b
 -}
 f1 :: [Integer]-> Bool -> String
 f1 = 2 + b + c
+case x of
+    w -> 0
+    c -> 1
 a = f1 b
 inc a = a + 1
 let a = 5; i = 4 in a = 3; b = 3

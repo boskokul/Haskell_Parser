@@ -39,14 +39,19 @@ data Type = RegularType String
             | FunctionType [Type]
               deriving (Show)
 
+data Branch = Branch String ArithmeticExpr
+            deriving Show
+
 data Stmt = Sequence [Stmt]
           | Assign String ArithmeticExpr Stmt
           | LetIn Stmt Stmt
           | TypeDeclaration String Type
           | If LogicalExpr Stmt Stmt
           | FunctionDeclaration String [String] ArithmeticExpr
+          | CaseOf ArithmeticExpr [Branch]
           | NoWhere
             deriving (Show)
+
 
 
 acceptableTypes :: [String]
@@ -57,7 +62,7 @@ languageDef = emptyDef  {  Token.commentStart    = "{-",
                            Token.commentLine     = "--",
                            Token.identStart      = letter,
                            Token.identLetter     = alphaNum,
-                           Token.reservedNames = ["let", "in", "where", "True", "False", "if", "then", "else"]
+                           Token.reservedNames = ["let", "in", "where", "True", "False", "if", "then", "else", "case", "of"]
                         }
 
 lexer = Token.makeTokenParser languageDef
@@ -87,7 +92,7 @@ sequenceOfStmt =
 
 subStatement :: Parser Stmt
 subStatement = do
-  try assignStmt <|> try typeStmt <|> functionDeclaration <|> letInStmt <|> ifStmt 
+  try assignStmt <|> try typeStmt <|> functionDeclaration <|> letInStmt <|> ifStmt <|> caseOfStmt 
 
 embeddedStmt =
   do list <- (subStatement <* spaces) `sepBy1` semiParser
@@ -156,6 +161,29 @@ ifStmt =
         Just _ -> embeddedStmt
         Nothing -> fail "missing else clause"
      return $ If cond stmt1 stmt2
+
+parseBranches = do 
+      list <- many1 embeddedBranches
+      return $ list
+
+embeddedBranches = do try parseBranche
+
+parseBranche :: Parser Branch
+parseBranche = do
+     name <- identifierParser
+     _  <- reservedOpParser "->"
+     expr <- aExpression
+     return $ Branch name expr
+
+caseOfStmt :: Parser Stmt
+caseOfStmt =
+  do reservedParser "case"
+     expr  <- aExpression
+     mOf <- optionMaybe (try (reservedParser "of"))
+     branches <- case mOf of
+        Just _ -> try parseBranches
+        Nothing -> fail "missing of clause"
+     return $ CaseOf expr branches
 
 logicalExpression :: Parser LogicalExpr
 logicalExpression = buildExpressionParser lOperators lTerm
