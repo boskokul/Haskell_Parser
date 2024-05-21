@@ -37,7 +37,12 @@ data RelationalBinOp = Greater
 data Type = RegularType String
             | ListType String
             | FunctionType [Type]
-              deriving (Show)
+
+
+instance Show Type where
+   show (RegularType x) = show "Regular type " ++ x ++ "\n"
+   show (ListType s) = "ListType " ++ show s ++ "\n"
+   show (FunctionType ts) = "FunctionType " ++ show ts ++ "\n"
 
 data Branch = Branch String ArithmeticExpr
             deriving Show
