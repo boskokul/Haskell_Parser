@@ -1,6 +1,6 @@
 Sequence [
     TypeDeclaration b RegularType "Integer",
-    Assign b (IntConst 4) NoWhere,
+    Assign b (Negative (IntConst 4)) NoWhere,
     Assign c (IntConst 4) Sequence [
             Assign a (IntConst 3) NoWhere,
             Assign b (IntConst 5) NoWhere
@@ -9,7 +9,7 @@ Sequence [
     TypeDeclaration p ListType "Bool",
     Assign p (FunctionCall "f" [Var "b",Var "x"]) NoWhere,
     TypeDeclaration f1 FunctionType [ListType "Integer",RegularType "Bool",RegularType "String"],
-    Assign f1 (ArithmeticBinary Add (ArithmeticBinary Add (IntConst 2) (Var "b")) (Var "c")) NoWhere,
+    Assign f1 (ArithmeticBinary Add (IntConst 2) (ArithmeticBinary Multiply (Var "b") (Var "c"))) NoWhere,
     CaseOf (Var "x") [
         Branch w (IntConst 0),
         Branch c (IntConst 1)
@@ -29,5 +29,8 @@ Sequence [
             Assign b (IntConst 3) NoWhere,
             Assign c (IntConst 0) NoWhere
         ]         Assign b (IntConst 4) NoWhere,
-    FunctionDeclaration add ["a","b"] (ArithmeticBinary Add (Var "a") (Var "b"))
+    FunctionDeclaration add ["a","b"] (ArithmeticBinary Add (Var "a") (Var "b")),
+    Assign s (ListVar [LIntConst 2,LIntConst 3]) NoWhere,
+    Assign s (ListVar [LVar "r1",LVar "r2"]) NoWhere,
+    Assign s (ListVar [LBoolConst True,LBoolConst False]) NoWhere
 ]

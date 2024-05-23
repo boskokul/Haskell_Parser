@@ -6,10 +6,16 @@ import Data.List
 
 data ArithmeticExpr = Var String
            | IntConst Integer
+           | ListVar [ListParExpr]
            | Negative ArithmeticExpr
            | ArithmeticBinary ArithmBinOp ArithmeticExpr ArithmeticExpr
            | FunctionCall String [ArithmeticExpr]
               deriving (Show)
+
+data ListParExpr = LVar String
+                | LIntConst Integer
+                | LBoolConst Bool
+                deriving (Show)
 
 data ArithmBinOp = Add
             | Subtract
@@ -110,9 +116,10 @@ reservedParser = Token.reserved lexer
 
 semiParser = Token.semi lexer
 
+commaParser = Token.comma lexer
 
 statement :: Parser Stmt
-statement =   parensParser (statement <* spaces)
+statement =   parensParser statement
           <|> sequenceOfStmt
 
 sequenceOfStmt =
@@ -261,7 +268,7 @@ assignStmt :: Parser Stmt
 assignStmt =
   do var  <- identifierParser
      _ <- reservedOpParser "="
-     expr <- try functionCall <|> aExpression
+     expr <- try functionCall <|> parseListVar <|> aExpression
      mWhere <- optionMaybe (try (reservedParser "where"))
      pairsWhere <- case mWhere of
         Just _ -> embeddedStmt
@@ -271,17 +278,47 @@ assignStmt =
 aExpression :: Parser ArithmeticExpr
 aExpression = buildExpressionParser aOperators aTerm
 
-aOperators = [ [Prefix (reservedOpParser "-"   >> return Negative)          ]
-             , [Infix  (reservedOpParser "*"   >> return (ArithmeticBinary Multiply)) AssocLeft,
-                Infix  (reservedOpParser "/"   >> return (ArithmeticBinary Divide  )) AssocLeft,
-                Infix  (reservedOpParser "+"   >> return (ArithmeticBinary Add     )) AssocLeft,
-                Infix  (reservedOpParser "-"   >> return (ArithmeticBinary Subtract)) AssocLeft]
-              ]
+-- aOperators = [ [Prefix (reservedOpParser "-"   >> return Negative)          ]
+--              , [Infix  (reservedOpParser "*"   >> return (ArithmeticBinary Multiply)) AssocLeft,
+--                 Infix  (reservedOpParser "/"   >> return (ArithmeticBinary Divide  )) AssocLeft,
+--                 Infix  (reservedOpParser "+"   >> return (ArithmeticBinary Add     )) AssocLeft,
+--                 Infix  (reservedOpParser "-"   >> return (ArithmeticBinary Subtract)) AssocLeft]
+--               ]
+
+aOperators = [ [prefix "-" Negative]
+             , [binary "*" Multiply, binary "/" Divide]
+             , [binary "+" Add, binary "-" Subtract]
+             ]
+  where
+    binary opName op = Infix (reservedOpParser opName >> return (ArithmeticBinary op)) AssocLeft
+    prefix  opName op = Prefix (do
+                                reservedOpParser opName
+                                return op )
 
 aTerm =  parensParser aExpression
-     <|> fmap Var identifierParser
-     <|> fmap IntConst integerParser
+     <|> Var <$> identifierParser
+     <|> IntConst <$> integerParser
 
+listParExpression :: Parser ListParExpr
+listParExpression = buildExpressionParser listOperators listTerm
+
+listOperators = [ 
+             ]
+
+listTerm =  parensParser listParExpression
+     <|> (reservedParser "True"  >> return (LBoolConst True ))
+     <|> (reservedParser "False" >> return (LBoolConst False))
+     <|> LVar <$> identifierParser
+     <|> LIntConst <$> integerParser
+
+-- varExpr = try aExpression <|> try logicalExpression
+
+parseListVar :: Parser ArithmeticExpr
+parseListVar = do
+    _ <- reservedOpParser "["
+    vars <- listParExpression `sepBy` commaParser
+    _ <- reservedOpParser "]"
+    return $ ListVar vars
 
 whiteSpaceParser = Token.whiteSpace lexer
 
