@@ -58,13 +58,19 @@ data Stmt = Sequence [Stmt]
             -- deriving (Show)
 
 instance Show Stmt where
-   show (Sequence st) =                   "Sequence " ++ show st
+   show (Sequence st) =                   "Sequence [" ++ concatSubStmts ++ "]"
+      where
+         showSubStmts :: [String]
+         showSubStmts = map show st
+
+         concatSubStmts :: String
+         concatSubStmts = unlines showSubStmts
    show (Assign s a st) =                 "\n\tAssign " ++ show s ++ " (" ++ show a ++ ") " ++ show st
-   show (LetIn st1 st2) =                 "\n\tLetIn " ++ show st1 ++ "\n\t" ++ show st2
+   show (LetIn st1 st2) =                 "\n\tLetIn " ++ show st1 ++ "\t" ++ show st2
    show (TypeDeclaration s t) =           "\n\tTypeDeclaration " ++ show s ++ " " ++ show t
    show (If l st1 st2) =                  "\n\tIf " ++ show l ++ show st1  ++ show st2
-   show (FunctionDeclaration s1 s2 a) =   "\n\tFunctionDeclaration " ++ show s1
-   show (CaseOf a b) =                    "\n\tCaseOf " ++ show a
+   show (FunctionDeclaration s1 s2 a) =   "\n\tFunctionDeclaration " ++ show s1 ++ show s2 ++ show a
+   show (CaseOf a b) =                    "\n\tCaseOf " ++ show a ++ show b
    show (NoWhere) =                       "NoWherePart"
 
 
@@ -260,6 +266,7 @@ aOperators = [ [Prefix (reservedOpParser "-"   >> return Negative)          ]
 aTerm =  parensParser aExpression
      <|> fmap Var identifierParser
      <|> fmap IntConst integerParser
+
 
 
 parseFile :: FilePath -> IO Stmt
