@@ -8,7 +8,7 @@ data ArithmeticExpr = Var String
            | IntConst Integer
            | Negative ArithmeticExpr
            | ArithmeticBinary ArithmBinOp ArithmeticExpr ArithmeticExpr
-           | FunctionCall String String
+           | FunctionCall String [ArithmeticExpr]
               deriving (Show)
 
 data ArithmBinOp = Add
@@ -110,11 +110,9 @@ reservedParser = Token.reserved lexer
 
 semiParser = Token.semi lexer
 
-haskellParser :: Parser Stmt
-haskellParser = statement
 
 statement :: Parser Stmt
-statement =   parensParser statement
+statement =   parensParser (statement <* spaces)
           <|> sequenceOfStmt
 
 sequenceOfStmt =
@@ -174,10 +172,16 @@ typeStmt =
 embeddedFunctionCallArgs =
   do (identifierParser <* spaces) `sepBy1` semiParser
 
+identifierParserF = do try identifierParser
+
+parseParameters = manyTill (many space *> aExpression <* many space) (reservedOpParser ")")
+
 functionCall :: Parser ArithmeticExpr
-functionCall =
-  do f1  <- identifierParser
-     FunctionCall f1 <$> identifierParser
+functionCall = do  
+      f1  <- identifierParser
+      _ <- reservedOpParser "("
+      pars <- parseParameters
+      return $ FunctionCall f1 pars
 
 ifStmt :: Parser Stmt
 ifStmt =
@@ -279,6 +283,11 @@ aTerm =  parensParser aExpression
      <|> fmap IntConst integerParser
 
 
+whiteSpaceParser = Token.whiteSpace lexer
+
+haskellParser :: Parser Stmt
+haskellParser = whiteSpaceParser *> statement
+
 
 parseFile :: FilePath -> IO Stmt
 parseFile file =
@@ -286,7 +295,6 @@ parseFile file =
      case parse haskellParser "" haskellCode of
        Left e  -> print e >> fail "parse error"
        Right r -> return r
-
 
 writeFileOutput file =
   do haskellCode  <- readFile file
