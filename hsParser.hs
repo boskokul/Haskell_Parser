@@ -6,6 +6,7 @@ import Data.List
 
 data ArithmeticExpr = Var String
            | IntConst Integer
+           | String String
            | ListVar [ListParExpr]
            | Negative ArithmeticExpr
            | ArithmeticBinary ArithmBinOp ArithmeticExpr ArithmeticExpr
@@ -175,9 +176,6 @@ typeStmt =
      typeName <- try parseFunctionType <|> parseRegularType <|> parseListType
      return $ TypeDeclaration var typeName
 
---popravi ovo
-embeddedFunctionCallArgs =
-  do (identifierParser <* spaces) `sepBy1` semiParser
 
 identifierParserF = do try identifierParser
 
@@ -210,11 +208,26 @@ parseBranches = do
 
 embeddedBranches = do try parseBranche
 
+quotedIdentifier = do
+    _ <- char '"'
+    identifier <- many1 letter
+    _ <- char '"'
+    whiteSpaceParser
+    return $ String identifier
+
+parseId = do
+    identifier <- identifierParser
+    return $ Var identifier
+
+parseInt = do
+    identifier <- integerParser
+    return $ IntConst identifier
+
 parseBranche :: Parser Branch
 parseBranche = do
      name <- identifierParser
      _  <- reservedOpParser "->"
-     expr <- aExpression
+     expr <- whiteSpaceParser *> try quotedIdentifier <|> parseId <|> parseInt
      return $ Branch name expr
 
 caseOfStmt :: Parser Stmt

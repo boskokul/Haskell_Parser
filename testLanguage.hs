@@ -11,8 +11,8 @@ p = f (b x)
 f1 :: [Integer]-> Bool -> String
 f1 = 2 + b * c
 case x of
-    w -> 0
-    c -> 1
+    w -> "gft"
+    c -> "abc"
 a = f1 ( b  3 3 )
 inc a = a + 1
 let a = 5; i = 4 in a = 3; b = 3
@@ -23,3 +23,9 @@ add a b = a + b
 s = [2,3]
 s = [r1,r2]
 s = [True,False]
+case x of
+    w -> t
+    c -> r
+case x of
+    w -> 12
+    c -> 10
