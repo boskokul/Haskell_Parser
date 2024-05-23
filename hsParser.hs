@@ -2,6 +2,7 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Language
 import Text.ParserCombinators.Parsec.Token as Token
+import Data.List
 
 data ArithmeticExpr = Var String
            | IntConst Integer
@@ -58,21 +59,17 @@ data Stmt = Sequence [Stmt]
             -- deriving (Show)
 
 instance Show Stmt where
-   show (Sequence st) =                   "Sequence [" ++ concatSubStmts ++ "]"
-      where
-         showSubStmts :: [String]
-         showSubStmts = map show st
+    show = showIndented 0
+        where
+            showIndented indentLevel (Sequence stmts) =
+                "Sequence [\n" ++ intercalate ",\n" (map (showStmt (indentLevel + 1)) stmts) ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
+            showIndented indentLevel (Assign a b stmt) =
+                replicate (indentLevel * 4) ' ' ++ "Assign " ++ a ++ " " ++ show b ++ " " ++ showStmt (indentLevel + 1) stmt
+            showIndented indentLevel (TypeDeclaration s t) =
+                replicate (indentLevel * 4) ' ' ++ "TypeDeclaration " ++ s ++ " " ++ show t
+            showIndented _ NoWhere = "NoWhere"
 
-         concatSubStmts :: String
-         concatSubStmts = unlines showSubStmts
-   show (Assign s a st) =                 "\n\tAssign " ++ show s ++ " (" ++ show a ++ ") " ++ show st
-   show (LetIn st1 st2) =                 "\n\tLetIn " ++ show st1 ++ "\t" ++ show st2
-   show (TypeDeclaration s t) =           "\n\tTypeDeclaration " ++ show s ++ " " ++ show t
-   show (If l st1 st2) =                  "\n\tIf " ++ show l ++ show st1  ++ show st2
-   show (FunctionDeclaration s1 s2 a) =   "\n\tFunctionDeclaration " ++ show s1 ++ show s2 ++ show a
-   show (CaseOf a b) =                    "\n\tCaseOf " ++ show a ++ show b
-   show (NoWhere) =                       "NoWherePart"
-
+            showStmt indentLevel stmt = showIndented indentLevel stmt
 
 acceptableTypes :: [String]
 acceptableTypes = ["Integer", "String", "Bool"]

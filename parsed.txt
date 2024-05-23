@@ -1,54 +1,9 @@
 Sequence [
-	TypeDeclaration "b" RegularType "Integer"
-
-	Assign "b" (IntConst 4) NoWherePart
-
-	Assign "c" (IntConst 4) Sequence [
-	Assign "a" (IntConst 3) NoWherePart
-
-	Assign "b" (IntConst 5) NoWherePart
-]
-
-	Assign "a" (ArithmeticBinary Add (Negative (IntConst 6)) (IntConst 1)) NoWherePart
-
-	TypeDeclaration "p" ListType "Bool"
-
-	Assign "p" (FunctionCall "f" "b") NoWherePart
-
-	TypeDeclaration "f1" FunctionType [ListType "Integer",RegularType "Bool",RegularType "String"]
-
-	Assign "f1" (ArithmeticBinary Add (ArithmeticBinary Add (IntConst 2) (Var "b")) (Var "c")) NoWherePart
-
-	CaseOf Var "x"[Branch "w" (IntConst 0),Branch "c" (IntConst 1)]
-
-	Assign "a" (FunctionCall "f1" "b") NoWherePart
-
-	FunctionDeclaration "inc"["a"]ArithmeticBinary Add (Var "a") (IntConst 1)
-
-	LetIn Sequence [
-	Assign "a" (IntConst 5) NoWherePart
-
-	Assign "i" (IntConst 4) NoWherePart
-]	Sequence [
-	Assign "a" (IntConst 3) NoWherePart
-
-	Assign "b" (IntConst 3) NoWherePart
-]
-
-	If Not (LogicalBinary Or (RelationalBinary Greater (Var "a") (IntConst 5)) (RelationalBinary Less (Var "a") (IntConst 2)))
-	Assign "b" (IntConst 3) NoWherePart
-	Assign "b" (IntConst 4) NoWherePart
-
-	If LogicalBinary And (RelationalBinary LessEqual (Var "a") (Var "b")) (RelationalBinary NotEqual (Var "b") (Var "a"))
-	Assign "a" (ArithmeticBinary Add (Var "a") (Var "b")) NoWherePart
-	Assign "a" (ArithmeticBinary Subtract (Var "a") (Var "b")) NoWherePart
-
-	If LogicalBinary And (BoolConst True) (BoolConst False)Sequence [
-	Assign "b" (IntConst 3) NoWherePart
-
-	Assign "c" (IntConst 0) NoWherePart
-]
-	Assign "b" (IntConst 4) NoWherePart
-
-	FunctionDeclaration "add"["a","b"]ArithmeticBinary Add (Var "a") (Var "b")
+    TypeDeclaration b RegularType "Integer",
+    Assign b IntConst 4 NoWhere,
+    Assign c IntConst 4 Sequence [
+            Assign a IntConst 3 NoWhere,
+            Assign b IntConst 5 NoWhere
+        ],
+    Assign a ArithmeticBinary Add (Negative (IntConst 6)) (IntConst 1) NoWhere
 ]
