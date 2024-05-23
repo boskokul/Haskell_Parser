@@ -1,0 +1,33 @@
+Sequence [
+    TypeDeclaration b RegularType "Integer",
+    Assign b (IntConst 4) NoWhere,
+    Assign c (IntConst 4) Sequence [
+            Assign a (IntConst 3) NoWhere,
+            Assign b (IntConst 5) NoWhere
+        ],
+    Assign a (ArithmeticBinary Add (Negative (IntConst 6)) (IntConst 1)) NoWhere,
+    TypeDeclaration p ListType "Bool",
+    Assign p (FunctionCall "f" "b") NoWhere,
+    TypeDeclaration f1 FunctionType [ListType "Integer",RegularType "Bool",RegularType "String"],
+    Assign f1 (ArithmeticBinary Add (ArithmeticBinary Add (IntConst 2) (Var "b")) (Var "c")) NoWhere,
+    CaseOf (Var "x") [
+        Branch w (IntConst 0),
+        Branch c (IntConst 1)
+    ],
+    Assign a (FunctionCall "f1" "b") NoWhere,
+    FunctionDeclaration inc ["a"] (ArithmeticBinary Add (Var "a") (IntConst 1)),
+    LetIn Sequence [
+            Assign a (IntConst 5) NoWhere,
+            Assign i (IntConst 4) NoWhere
+        ] Sequence [
+            Assign a (IntConst 3) NoWhere,
+            Assign b (IntConst 3) NoWhere
+        ],
+    If (Not (LogicalBinary Or (RelationalBinary Greater (Var "a") (IntConst 5)) (RelationalBinary Less (Var "a") (IntConst 2))))         Assign b (IntConst 3) NoWhere         Assign b (IntConst 4) NoWhere,
+    If (LogicalBinary And (RelationalBinary LessEqual (Var "a") (Var "b")) (RelationalBinary NotEqual (Var "b") (Var "a")))         Assign a (ArithmeticBinary Add (Var "a") (Var "b")) NoWhere         Assign a (ArithmeticBinary Subtract (Var "a") (Var "b")) NoWhere,
+    If (LogicalBinary And (BoolConst True) (BoolConst False)) Sequence [
+            Assign b (IntConst 3) NoWhere,
+            Assign c (IntConst 0) NoWhere
+        ]         Assign b (IntConst 4) NoWhere,
+    FunctionDeclaration add ["a","b"] (ArithmeticBinary Add (Var "a") (Var "b"))
+]

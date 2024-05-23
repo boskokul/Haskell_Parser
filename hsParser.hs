@@ -2,6 +2,7 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Language
 import Text.ParserCombinators.Parsec.Token as Token
+import Data.List
 
 data ArithmeticExpr = Var String
            | IntConst Integer
@@ -37,10 +38,21 @@ data RelationalBinOp = Greater
 data Type = RegularType String
             | ListType String
             | FunctionType [Type]
-              deriving (Show)
+            deriving Show
+
+-- instance Show Type where
+--    show (RegularType x) = "Regular type " ++ show x ++ "\n"
+--    show (ListType s) = "ListType " ++ show s ++ "\n"
+--    show (FunctionType ts) = "FunctionType " ++ show ts ++ "\n"
 
 data Branch = Branch String ArithmeticExpr
-            deriving Show
+            -- deriving Show
+
+showIndented indentLevel (Branch s a) =
+                replicate (indentLevel * 4) ' ' ++ "Branch " ++ s ++ " (" ++ show a ++ ")"
+
+showBranch indentLevel branch = showIndented indentLevel branch
+            
 
 data Stmt = Sequence [Stmt]
           | Assign String ArithmeticExpr Stmt
@@ -50,9 +62,28 @@ data Stmt = Sequence [Stmt]
           | FunctionDeclaration String [String] ArithmeticExpr
           | CaseOf ArithmeticExpr [Branch]
           | NoWhere
-            deriving (Show)
+            -- deriving (Show)
 
+instance Show Stmt where
+    show = showIndented 0
+        where
+            showIndented indentLevel (Sequence stmts) =
+                "Sequence [\n" ++ intercalate ",\n" (map (showStmt (indentLevel + 1)) stmts) ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
+            showIndented indentLevel (Assign a b stmt) =
+                replicate (indentLevel * 4) ' ' ++ "Assign " ++ a ++ " (" ++ show b ++ ") " ++ showStmt (indentLevel + 1) stmt
+            showIndented indentLevel (LetIn stmt1 stmt2) =
+                replicate (indentLevel * 4) ' ' ++ "LetIn " ++ showStmt (indentLevel + 1) stmt1 ++ " " ++ showStmt (indentLevel + 1) stmt2
+            showIndented indentLevel (TypeDeclaration s t) =
+                replicate (indentLevel * 4) ' ' ++ "TypeDeclaration " ++ s ++ " " ++ show t
+            showIndented indentLevel (If l stmt1 stmt2) =
+                replicate (indentLevel * 4) ' ' ++ "If (" ++ show l ++ ") " ++ showStmt (indentLevel + 1) stmt1 ++ " " ++ showStmt (indentLevel + 1) stmt2
+            showIndented indentLevel (FunctionDeclaration s params a) =
+                replicate (indentLevel * 4) ' ' ++ "FunctionDeclaration " ++ s ++ " " ++ show params ++ " (" ++ show a ++ ")"
+            showIndented indentLevel (CaseOf a branches) =
+                replicate (indentLevel * 4) ' ' ++ "CaseOf" ++ " (" ++ show a ++ ") " ++ "[\n" ++ intercalate ",\n" (map (showBranch (indentLevel + 1)) branches)  ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
+            showIndented _ NoWhere = "NoWhere"
 
+            showStmt indentLevel stmt = showIndented indentLevel stmt
 
 acceptableTypes :: [String]
 acceptableTypes = ["Integer", "String", "Bool"]
@@ -248,9 +279,17 @@ aTerm =  parensParser aExpression
      <|> fmap IntConst integerParser
 
 
+
 parseFile :: FilePath -> IO Stmt
 parseFile file =
   do haskellCode  <- readFile file
      case parse haskellParser "" haskellCode of
        Left e  -> print e >> fail "parse error"
        Right r -> return r
+
+
+writeFileOutput file =
+  do haskellCode  <- readFile file
+     case parse haskellParser "" haskellCode of
+       Left e  -> print e >> fail "parse error"
+       Right r -> writeFile "parsed.txt" $ show r
