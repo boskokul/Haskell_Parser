@@ -46,7 +46,13 @@ data Type = RegularType String
 --    show (FunctionType ts) = "FunctionType " ++ show ts ++ "\n"
 
 data Branch = Branch String ArithmeticExpr
-            deriving Show
+            -- deriving Show
+
+showIndented indentLevel (Branch s a) =
+                replicate (indentLevel * 4) ' ' ++ "Branch " ++ s ++ " (" ++ show a ++ ")"
+
+showBranch indentLevel branch = showIndented indentLevel branch
+            
 
 data Stmt = Sequence [Stmt]
           | Assign String ArithmeticExpr Stmt
@@ -64,9 +70,17 @@ instance Show Stmt where
             showIndented indentLevel (Sequence stmts) =
                 "Sequence [\n" ++ intercalate ",\n" (map (showStmt (indentLevel + 1)) stmts) ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
             showIndented indentLevel (Assign a b stmt) =
-                replicate (indentLevel * 4) ' ' ++ "Assign " ++ a ++ " " ++ show b ++ " " ++ showStmt (indentLevel + 1) stmt
+                replicate (indentLevel * 4) ' ' ++ "Assign " ++ a ++ " (" ++ show b ++ ") " ++ showStmt (indentLevel + 1) stmt
+            showIndented indentLevel (LetIn stmt1 stmt2) =
+                replicate (indentLevel * 4) ' ' ++ "LetIn " ++ showStmt (indentLevel + 1) stmt1 ++ " " ++ showStmt (indentLevel + 1) stmt2
             showIndented indentLevel (TypeDeclaration s t) =
                 replicate (indentLevel * 4) ' ' ++ "TypeDeclaration " ++ s ++ " " ++ show t
+            showIndented indentLevel (If l stmt1 stmt2) =
+                replicate (indentLevel * 4) ' ' ++ "If (" ++ show l ++ ") " ++ showStmt (indentLevel + 1) stmt1 ++ " " ++ showStmt (indentLevel + 1) stmt2
+            showIndented indentLevel (FunctionDeclaration s params a) =
+                replicate (indentLevel * 4) ' ' ++ "FunctionDeclaration " ++ s ++ " " ++ show params ++ " (" ++ show a ++ ")"
+            showIndented indentLevel (CaseOf a branches) =
+                replicate (indentLevel * 4) ' ' ++ "CaseOf" ++ " (" ++ show a ++ ") " ++ "[\n" ++ intercalate ",\n" (map (showBranch (indentLevel + 1)) branches)  ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
             showIndented _ NoWhere = "NoWhere"
 
             showStmt indentLevel stmt = showIndented indentLevel stmt
@@ -272,7 +286,6 @@ parseFile file =
      case parse haskellParser "" haskellCode of
        Left e  -> print e >> fail "parse error"
        Right r -> return r
-
 
 
 writeFileOutput file =
