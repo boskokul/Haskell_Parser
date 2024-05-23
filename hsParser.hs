@@ -37,12 +37,12 @@ data RelationalBinOp = Greater
 data Type = RegularType String
             | ListType String
             | FunctionType [Type]
+            deriving Show
 
-
-instance Show Type where
-   show (RegularType x) = show "Regular type " ++ x ++ "\n"
-   show (ListType s) = "ListType " ++ show s ++ "\n"
-   show (FunctionType ts) = "FunctionType " ++ show ts ++ "\n"
+-- instance Show Type where
+--    show (RegularType x) = "Regular type " ++ show x ++ "\n"
+--    show (ListType s) = "ListType " ++ show s ++ "\n"
+--    show (FunctionType ts) = "FunctionType " ++ show ts ++ "\n"
 
 data Branch = Branch String ArithmeticExpr
             deriving Show
@@ -55,8 +55,17 @@ data Stmt = Sequence [Stmt]
           | FunctionDeclaration String [String] ArithmeticExpr
           | CaseOf ArithmeticExpr [Branch]
           | NoWhere
-            deriving (Show)
+            -- deriving (Show)
 
+instance Show Stmt where
+   show (Sequence st) =                   "Sequence " ++ show st
+   show (Assign s a st) =                 "\n\tAssign " ++ show s ++ " (" ++ show a ++ ") " ++ show st
+   show (LetIn st1 st2) =                 "\n\tLetIn " ++ show st1 ++ "\n\t" ++ show st2
+   show (TypeDeclaration s t) =           "\n\tTypeDeclaration " ++ show s ++ " " ++ show t
+   show (If l st1 st2) =                  "\n\tIf " ++ show l ++ show st1  ++ show st2
+   show (FunctionDeclaration s1 s2 a) =   "\n\tFunctionDeclaration " ++ show s1
+   show (CaseOf a b) =                    "\n\tCaseOf " ++ show a
+   show (NoWhere) =                       "NoWherePart"
 
 
 acceptableTypes :: [String]
@@ -259,3 +268,11 @@ parseFile file =
      case parse haskellParser "" haskellCode of
        Left e  -> print e >> fail "parse error"
        Right r -> return r
+
+
+
+writeFileOutput file =
+  do haskellCode  <- readFile file
+     case parse haskellParser "" haskellCode of
+       Left e  -> print e >> fail "parse error"
+       Right r -> writeFile "parsed.txt" $ show r
