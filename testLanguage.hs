@@ -1,5 +1,5 @@
 b :: Integer
-b = -4 
+b = -4.4
 c = 4 where a = 3; b = 5
 -- comment in line
 a = -6 + 1
@@ -23,6 +23,7 @@ add a b = a + b
 s = [2,3]
 s = [r1,r2]
 s = [True,False]
+s = [1.4,5.6]
 case x of
     w -> t
     c -> r

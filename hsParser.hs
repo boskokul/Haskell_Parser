@@ -6,6 +6,7 @@ import Data.List
 
 data ArithmeticExpr = Var String
            | IntConst Integer
+           | FloatConst Double
            | String String
            | ListVar [ListParExpr]
            | Negative ArithmeticExpr
@@ -16,6 +17,7 @@ data ArithmeticExpr = Var String
 data ListParExpr = LVar String
                 | LIntConst Integer
                 | LBoolConst Bool
+                | LFloatConst Double
                 deriving (Show)
 
 data ArithmBinOp = Add
@@ -112,6 +114,8 @@ reservedOpParser = Token.reservedOp lexer
 parensParser = Token.parens lexer
 
 integerParser = Token.integer lexer
+
+floatParser = Token.float lexer
 
 reservedParser = Token.reserved lexer
 
@@ -310,6 +314,7 @@ aOperators = [ [prefix "-" Negative]
 
 aTerm =  parensParser aExpression
      <|> Var <$> identifierParser
+     <|> FloatConst <$> try floatParser
      <|> IntConst <$> integerParser
 
 listParExpression :: Parser ListParExpr
@@ -322,6 +327,7 @@ listTerm =  parensParser listParExpression
      <|> (reservedParser "True"  >> return (LBoolConst True ))
      <|> (reservedParser "False" >> return (LBoolConst False))
      <|> LVar <$> identifierParser
+     <|> LFloatConst <$> try floatParser
      <|> LIntConst <$> integerParser
 
 -- varExpr = try aExpression <|> try logicalExpression

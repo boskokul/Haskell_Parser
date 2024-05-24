@@ -1,6 +1,6 @@
 Sequence [
     TypeDeclaration b RegularType "Integer",
-    Assign b (Negative (IntConst 4)) NoWhere,
+    Assign b (Negative (FloatConst 4.4)) NoWhere,
     Assign c (IntConst 4) Sequence [
             Assign a (IntConst 3) NoWhere,
             Assign b (IntConst 5) NoWhere
@@ -33,6 +33,7 @@ Sequence [
     Assign s (ListVar [LIntConst 2,LIntConst 3]) NoWhere,
     Assign s (ListVar [LVar "r1",LVar "r2"]) NoWhere,
     Assign s (ListVar [LBoolConst True,LBoolConst False]) NoWhere,
+    Assign s (ListVar [LFloatConst 1.4,LFloatConst 5.6]) NoWhere,
     CaseOf (Var "x") [
         Branch w (Var "t"),
         Branch c (Var "r")
