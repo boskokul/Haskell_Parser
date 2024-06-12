@@ -4,15 +4,17 @@ import Text.ParserCombinators.Parsec.Language
 import Text.ParserCombinators.Parsec.Token as Token
 import Data.List
 
+
 data ArithmeticExpr = Var String
-           | IntConst Integer
-           | FloatConst Double
-           | String String
-           | ListVar [ListParExpr]
-           | Negative ArithmeticExpr
-           | ArithmeticBinary ArithmBinOp ArithmeticExpr ArithmeticExpr
-           | FunctionCall String [ArithmeticExpr]
-              deriving (Show)
+                    | IntConst Integer
+                    | FloatConst Double
+                    | BoolConstL Bool
+                    | String String
+                    | ListVar [ArithmeticExpr]
+                    | Negative ArithmeticExpr
+                    | ArithmeticBinary ArithmBinOp ArithmeticExpr ArithmeticExpr
+                    | FunctionCall String [ArithmeticExpr]
+                        deriving (Show)
 
 data ListParExpr = LVar String
                 | LIntConst Integer
@@ -21,10 +23,10 @@ data ListParExpr = LVar String
                 deriving (Show)
 
 data ArithmBinOp = Add
-            | Subtract
-            | Multiply
-            | Divide
-                deriving (Show)
+                | Subtract
+                | Multiply
+                | Divide
+                    deriving (Show)
 
 data LogicalExpr = BoolConst Bool
                | Not LogicalExpr
@@ -185,11 +187,13 @@ identifierParserF = do try identifierParser
 
 parseParameters = manyTill (many space *> aExpression <* many space) (reservedOpParser ")")
 
+parseParametersFC = manyTill (many space *> aTerm <* many space) (reservedOpParser ")")
+
 functionCall :: Parser ArithmeticExpr
 functionCall = do  
       f1  <- identifierParser
       _ <- reservedOpParser "("
-      pars <- parseParameters
+      pars <- parseParametersFC
       return $ FunctionCall f1 pars
 
 ifStmt :: Parser Stmt
@@ -313,22 +317,23 @@ aOperators = [ [prefix "-" Negative]
                                 return op )
 
 aTerm =  parensParser aExpression
-     <|> Var <$> identifierParser
-     <|> FloatConst <$> try floatParser
-     <|> IntConst <$> integerParser
+        <|> (reservedParser "True"  >> return (BoolConstL True ))
+        <|> (reservedParser "False" >> return (BoolConstL False))
+        <|> Var <$> identifierParser
+        <|> FloatConst <$> try floatParser
+        <|> IntConst <$> integerParser
 
-listParExpression :: Parser ListParExpr
-listParExpression = buildExpressionParser listOperators listTerm
+listParExpression :: Parser ArithmeticExpr
+listParExpression = buildExpressionParser listOperators aTerm
 
-listOperators = [ 
-             ]
+listOperators = [ ]
 
-listTerm =  parensParser listParExpression
-     <|> (reservedParser "True"  >> return (LBoolConst True ))
-     <|> (reservedParser "False" >> return (LBoolConst False))
-     <|> LVar <$> identifierParser
-     <|> LFloatConst <$> try floatParser
-     <|> LIntConst <$> integerParser
+-- listTerm =  parensParser listParExpression
+--      <|> (reservedParser "True"  >> return (LBoolConst True ))
+--      <|> (reservedParser "False" >> return (LBoolConst False))
+--      <|> LVar <$> identifierParser
+--      <|> LFloatConst <$> try floatParser
+--      <|> LIntConst <$> integerParser
 
 -- varExpr = try aExpression <|> try logicalExpression
 

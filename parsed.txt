@@ -30,10 +30,10 @@ Sequence [
             Assign c (IntConst 0) NoWhere
         ]         Assign b (IntConst 4) NoWhere,
     FunctionDeclaration add ["a","b"] (ArithmeticBinary Add (Var "a") (Var "b")),
-    Assign s (ListVar [LIntConst 2,LIntConst 3]) NoWhere,
-    Assign s (ListVar [LVar "r1",LVar "r2"]) NoWhere,
-    Assign s (ListVar [LBoolConst True,LBoolConst False]) NoWhere,
-    Assign s (ListVar [LFloatConst 1.4,LFloatConst 5.6]) NoWhere,
+    Assign s (ListVar [IntConst 2,IntConst 3]) NoWhere,
+    Assign s (ListVar [Var "r1",Var "r2"]) NoWhere,
+    Assign s (ListVar [BoolConstL True,BoolConstL False]) NoWhere,
+    Assign s (ListVar [FloatConst 1.4,FloatConst 5.6]) NoWhere,
     CaseOf (Var "x") [
         Branch w (Var "t"),
         Branch c (Var "r")
