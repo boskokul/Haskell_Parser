@@ -92,8 +92,9 @@ data Stmt = Sequence [Stmt]
           | If LogicalExpr Stmt Stmt
           | FunctionDeclaration String [String] ArithmeticExprNEW
           | CaseOf ArithmeticExprNEW [Branch]
-          | AssignNew LiteralIdentifier ArithmeticExprNEW Stmt
+          | AssignNew LiteralIdentifier Stmt
           | NoWhere
+          | AssigRegular ArithmeticExprNEW Stmt
             -- deriving (Show)
 
 instance Show Stmt where
@@ -103,8 +104,8 @@ instance Show Stmt where
                 "Sequence [\n" ++ intercalate ",\n" (map (showStmt (indentLevel + 1)) stmts) ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
             -- showIndented indentLevel (Assign a b stmt) =
             --     replicate (indentLevel * 4) ' ' ++ "Assign " ++ a ++ " (" ++ show b ++ ") " ++ showStmt (indentLevel + 1) stmt
-            showIndented indentLevel (AssignNew li a stmt) =
-                replicate (indentLevel * 4) ' ' ++ "AssignNew " ++ show li ++ " (" ++ show a ++ ") " ++ showStmt (indentLevel + 1) stmt
+            showIndented indentLevel (AssignNew li stmt) =
+                replicate (indentLevel * 4) ' ' ++ "AssignNew " ++ show li ++ showStmt (indentLevel + 1) stmt
             showIndented indentLevel (LetIn stmt1 stmt2) =
                 replicate (indentLevel * 4) ' ' ++ "LetIn " ++ showStmt (indentLevel + 1) stmt1 ++ " " ++ showStmt (indentLevel + 1) stmt2
             showIndented indentLevel (TypeDeclaration s t) =
@@ -116,6 +117,8 @@ instance Show Stmt where
             showIndented indentLevel (CaseOf a branches) =
                 replicate (indentLevel * 4) ' ' ++ "CaseOf" ++ " (" ++ show a ++ ") " ++ "[\n" ++ intercalate ",\n" (map (showBranch (indentLevel + 1)) branches)  ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
             showIndented _ NoWhere = "NoWhere"
+            showIndented indentLevel (AssigRegular expr stmt) =
+                " " ++ " (" ++ show expr ++ ") " ++ showStmt (indentLevel + 1) stmt
 
             showStmt indentLevel stmt = showIndented indentLevel stmt
 
@@ -184,13 +187,16 @@ assignmentStmParser :: Parser Stmt
 assignmentStmParser = do
     var <- variableParser
     _ <- reservedOpParser "="
+    expr <- parseExpr <|> letInStmt <|> ifStmt <|> caseOfStmt
+    return $ AssignNew var expr
+
+parseExpr = do 
     expr <- try functionCall <|> parseListVar <|> arithmeticExprNewParser
     mWhere <- optionMaybe (try (reservedParser "where"))
     pairsWhere <- case mWhere of
         Just _ -> embeddedStmt
         Nothing -> return NoWhere
-    return $ AssignNew var expr pairsWhere
-
+    return $ AssigRegular expr pairsWhere
 
 statement :: Parser Stmt
 statement =   parensParser statement

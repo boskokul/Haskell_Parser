@@ -30,3 +30,9 @@ case x of
 case x of
     w -> 12
     c -> 10
+
+m = let a = 5; i = 4 in a = 3; b = 3
+m = if True && False then b = 3; c = 0 else b = 4
+m = case x of
+    w -> t
+    c -> r
