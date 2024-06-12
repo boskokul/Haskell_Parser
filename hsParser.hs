@@ -17,6 +17,7 @@ data ArithmeticExprNEW = Neg ArithmeticExprNEW
                         | ArithmeticBinaryExpr ArithmBinOpNEW ArithmeticExprNEW ArithmeticExprNEW
                         | List [LiteralIdentifier]
                         | FunctionCallNew String [LiteralIdentifier]
+                        | EExpr ArithmeticExprNEW
                             deriving (Show)
 
 data ArithmBinOpNEW = Plus
@@ -86,7 +87,6 @@ showBranch indentLevel branch = showIndented indentLevel branch
             
 
 data Stmt = Sequence [Stmt]
-        --   | Assign String ArithmeticExpr Stmt
           | LetIn Stmt Stmt
           | TypeDeclaration String Type
           | If LogicalExpr Stmt Stmt
@@ -95,6 +95,7 @@ data Stmt = Sequence [Stmt]
           | AssignNew LiteralIdentifier Stmt
           | NoWhere
           | AssigRegular ArithmeticExprNEW Stmt
+          | EmbeddedExpression ArithmeticExprNEW
             -- deriving (Show)
 
 instance Show Stmt where
@@ -111,7 +112,7 @@ instance Show Stmt where
             showIndented indentLevel (TypeDeclaration s t) =
                 replicate (indentLevel * 4) ' ' ++ "TypeDeclaration " ++ s ++ " " ++ show t
             showIndented indentLevel (If l stmt1 stmt2) =
-                replicate (indentLevel * 4) ' ' ++ "If (" ++ show l ++ ") " ++ showStmt (indentLevel + 1) stmt1 ++ " " ++ showStmt (indentLevel + 1) stmt2
+                replicate (indentLevel * 4) ' ' ++ "If (" ++ show l ++ ") \n" ++ showStmt (indentLevel + 1) stmt1 ++ " \n" ++ showStmt (indentLevel + 1) stmt2
             showIndented indentLevel (FunctionDeclaration s params a) =
                 replicate (indentLevel * 4) ' ' ++ "FunctionDeclaration " ++ s ++ " " ++ show params ++ " (" ++ show a ++ ")"
             showIndented indentLevel (CaseOf a branches) =
@@ -119,6 +120,8 @@ instance Show Stmt where
             showIndented _ NoWhere = "NoWhere"
             showIndented indentLevel (AssigRegular expr stmt) =
                 " " ++ " (" ++ show expr ++ ") " ++ showStmt (indentLevel + 1) stmt
+            showIndented indentLevel (EmbeddedExpression a) =
+                replicate (indentLevel * 4) ' ' ++ " ( " ++ show a ++ " ) "
 
             showStmt indentLevel stmt = showIndented indentLevel stmt
 
@@ -214,13 +217,32 @@ embeddedStmt =
   do list <- (subStatement <* spaces) `sepBy1` semiParser
      return $ if length list == 1 then head list else Sequence list
 
+
+parseExpr2 = do 
+    expr <- try functionCall <|> arithmeticExprNewParser
+    return $ EExpr expr 
+
+embeddedExpression :: Parser Stmt
+embeddedExpression = do
+    expr <- parseExpr2
+    return $ EmbeddedExpression expr
+
+-- ovo je za izraze unutar letIn i ifElseThen iskljucivo, inace subStatement a ne subStatement2 
+subStatement2 :: Parser Stmt
+subStatement2 = do
+  try embeddedExpression
+
+embeddedStmtExpr =
+  do list <- (subStatement2 <* spaces) `sepBy1` semiParser
+     return $ if length list == 1 then head list else Sequence list
+
 letInStmt :: Parser Stmt
 letInStmt =
   do reservedParser "let"
      stmt1 <- embeddedStmt
      mIn <- optionMaybe (try (reservedParser "in"))
      pairsIn <- case mIn of
-        Just _ -> embeddedStmt
+        Just _ -> embeddedStmtExpr
         Nothing -> fail "missing in clause"
      return $ LetIn stmt1 pairsIn
 
@@ -275,11 +297,11 @@ ifStmt =
      cond  <- logicalExpression
      mThen <- optionMaybe (try (reservedParser "then"))
      stmt1 <- case mThen of
-        Just _ -> embeddedStmt
+        Just _ -> embeddedStmtExpr
         Nothing -> fail "missing then clause"
      mElse <- optionMaybe (try (reservedParser "else"))
      stmt2 <- case mElse of
-        Just _ -> embeddedStmt
+        Just _ -> embeddedStmtExpr
         Nothing -> fail "missing else clause"
      return $ If cond stmt1 stmt2
 

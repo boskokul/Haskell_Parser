@@ -20,15 +20,18 @@ Sequence [
             AssignNew VarLI "a"  (LiteralExpr (IntConstLI 5)) NoWhere,
             AssignNew VarLI "i"  (LiteralExpr (IntConstLI 4)) NoWhere
         ] Sequence [
-            AssignNew VarLI "a"  (LiteralExpr (IntConstLI 3)) NoWhere,
-            AssignNew VarLI "b"  (LiteralExpr (IntConstLI 3)) NoWhere
+             ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (LiteralExpr (IntConstLI 4))) ) ,
+             ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "w")) (LiteralExpr (IntConstLI 2))) ) 
         ],
-    If (Not (LogicalBinary Or (RelationalBinary Greater (VarExpr (VarLI "a")) (LiteralExpr (IntConstLI 5))) (RelationalBinary Less (VarExpr (VarLI "a")) (LiteralExpr (IntConstLI 2)))))         AssignNew VarLI "b"  (LiteralExpr (IntConstLI 3)) NoWhere         AssignNew VarLI "b"  (LiteralExpr (IntConstLI 4)) NoWhere,
-    If (LogicalBinary And (RelationalBinary LessEqual (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))) (RelationalBinary NotEqual (VarExpr (VarLI "b")) (VarExpr (VarLI "a"))))         AssignNew VarLI "a"  (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))) NoWhere         AssignNew VarLI "a"  (ArithmeticBinaryExpr Minus (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))) NoWhere,
-    If (LogicalBinary And (LogicalVar (BoolConstLI True)) (LogicalVar (BoolConstLI False))) Sequence [
-            AssignNew VarLI "b"  (LiteralExpr (IntConstLI 3)) NoWhere,
-            AssignNew VarLI "c"  (LiteralExpr (IntConstLI 0)) NoWhere
-        ]         AssignNew VarLI "b"  (LiteralExpr (IntConstLI 4)) NoWhere,
+    If (Not (LogicalBinary Or (RelationalBinary Greater (VarExpr (VarLI "a")) (LiteralExpr (IntConstLI 5))) (RelationalBinary Less (VarExpr (VarLI "a")) (LiteralExpr (IntConstLI 2))))) 
+         ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "b")) (LiteralExpr (IntConstLI 3))) )  
+         ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "b")) (LiteralExpr (IntConstLI 4))) ) ,
+    If (LogicalBinary And (RelationalBinary LessEqual (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))) (RelationalBinary NotEqual (VarExpr (VarLI "b")) (VarExpr (VarLI "a")))) 
+         ( EExpr (ArithmeticBinaryExpr Plus (ArithmeticBinaryExpr Times (VarExpr (VarLI "a")) (VarExpr (VarLI "a"))) (VarExpr (VarLI "b"))) )  
+         ( EExpr (ArithmeticBinaryExpr Minus (ArithmeticBinaryExpr Divided (VarExpr (VarLI "a")) (VarExpr (VarLI "a"))) (VarExpr (VarLI "b"))) ) ,
+    If (LogicalBinary And (LogicalVar (BoolConstLI True)) (LogicalVar (BoolConstLI False))) 
+         ( EExpr (ArithmeticBinaryExpr Minus (VarExpr (VarLI "b")) (LiteralExpr (IntConstLI 3))) )  
+         ( EExpr (ArithmeticBinaryExpr Times (VarExpr (VarLI "b")) (LiteralExpr (IntConstLI 4))) ) ,
     FunctionDeclaration add ["a","b"] (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))),
     AssignNew VarLI "s"  (List [IntConstLI 2,IntConstLI 3]) NoWhere,
     AssignNew VarLI "s"  (List [VarLI "r1",VarLI "r2"]) NoWhere,
@@ -45,14 +48,10 @@ Sequence [
     AssignNew VarLI "m"        LetIn Sequence [
                 AssignNew VarLI "a"  (LiteralExpr (IntConstLI 5)) NoWhere,
                 AssignNew VarLI "i"  (LiteralExpr (IntConstLI 4)) NoWhere
-            ] Sequence [
-                AssignNew VarLI "a"  (LiteralExpr (IntConstLI 3)) NoWhere,
-                AssignNew VarLI "b"  (LiteralExpr (IntConstLI 3)) NoWhere
-            ],
-    AssignNew VarLI "m"        If (LogicalBinary And (LogicalVar (BoolConstLI True)) (LogicalVar (BoolConstLI False))) Sequence [
-                AssignNew VarLI "b"  (LiteralExpr (IntConstLI 3)) NoWhere,
-                AssignNew VarLI "c"  (LiteralExpr (IntConstLI 0)) NoWhere
-            ]             AssignNew VarLI "b"  (LiteralExpr (IntConstLI 4)) NoWhere,
+            ]              ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (LiteralExpr (IntConstLI 4))) ) ,
+    AssignNew VarLI "m"        If (LogicalBinary And (LogicalVar (BoolConstLI True)) (LogicalVar (BoolConstLI False))) 
+             ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "b")) (LiteralExpr (IntConstLI 3))) )  
+             ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "b")) (LiteralExpr (IntConstLI 4))) ) ,
     AssignNew VarLI "m"        CaseOf (VarExpr (VarLI "x")) [
             Branch w (VarLI "t"),
             Branch c (VarLI "r")
