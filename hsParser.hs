@@ -26,28 +26,6 @@ data ArithmBinOpNEW = Plus
                  | Divided
                  deriving (Show)
 
--- data ArithmeticExpr = Var String
---                     | IntConst Integer
---                     | FloatConst Double
---                     | BoolConstL Bool
---                     | String String
---                     | ListVar [LiteralIdentifier]
---                     | Negative ArithmeticExpr
---                     | ArithmeticBinary ArithmBinOp ArithmeticExpr ArithmeticExpr
---                     | FunctionCall String [LiteralIdentifier]
---                         deriving (Show)
-
--- data ListParExpr = LVar String
---                 | LIntConst Integer
---                 | LBoolConst Bool
---                 | LFloatConst Double
---                 deriving (Show)
-
--- data ArithmBinOp = Add
---                 | Subtract
---                 | Multiply
---                 | Divide
---                     deriving (Show)
 
 data LogicalExpr = LogicalVar LiteralIdentifier
                | Not LogicalExpr
@@ -72,10 +50,6 @@ data Type = RegularType String
             | FunctionType [Type]
             deriving Show
 
--- instance Show Type where
---    show (RegularType x) = "Regular type " ++ show x ++ "\n"
---    show (ListType s) = "ListType " ++ show s ++ "\n"
---    show (FunctionType ts) = "FunctionType " ++ show ts ++ "\n"
 
 data Branch = Branch String LiteralIdentifier
             -- deriving Show
@@ -103,8 +77,6 @@ instance Show Stmt where
         where
             showIndented indentLevel (Sequence stmts) =
                 "Sequence [\n" ++ intercalate ",\n" (map (showStmt (indentLevel + 1)) stmts) ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
-            -- showIndented indentLevel (Assign a b stmt) =
-            --     replicate (indentLevel * 4) ' ' ++ "Assign " ++ a ++ " (" ++ show b ++ ") " ++ showStmt (indentLevel + 1) stmt
             showIndented indentLevel (AssignNew li stmt) =
                 replicate (indentLevel * 4) ' ' ++ "AssignNew " ++ show li ++ showStmt (indentLevel + 1) stmt
             showIndented indentLevel (LetIn stmt1 stmt2) =
@@ -280,8 +252,6 @@ typeStmt =
 
 identifierParserF = do try identifierParser
 
--- parseParameters = manyTill (many space *> aExpression <* many space) (reservedOpParser ")")
-
 parseParametersFC = manyTill (many space *> literalIdentifierTerm <* many space) (reservedOpParser ")")
 
 functionCall :: Parser ArithmeticExprNEW
@@ -380,43 +350,7 @@ functionDeclaration = do
     body <- try arithmeticExprNewParser
     return (FunctionDeclaration name args body)
 
--- assignStmt :: Parser Stmt
--- assignStmt =
---   do var  <- identifierParser
---      _ <- reservedOpParser "="
---      expr <- try functionCall <|> parseListVar <|> aExpression
---      mWhere <- optionMaybe (try (reservedParser "where"))
---      pairsWhere <- case mWhere of
---         Just _ -> embeddedStmt
---         Nothing -> return NoWhere
---      return $ Assign var expr pairsWhere
 
--- aExpression :: Parser ArithmeticExpr
--- aExpression = buildExpressionParser aOperators aTerm
-
--- aOperators = [ [Prefix (reservedOpParser "-"   >> return Negative)          ]
---              , [Infix  (reservedOpParser "*"   >> return (ArithmeticBinary Multiply)) AssocLeft,
---                 Infix  (reservedOpParser "/"   >> return (ArithmeticBinary Divide  )) AssocLeft,
---                 Infix  (reservedOpParser "+"   >> return (ArithmeticBinary Add     )) AssocLeft,
---                 Infix  (reservedOpParser "-"   >> return (ArithmeticBinary Subtract)) AssocLeft]
---               ]
-
--- aOperators = [ [prefix "-" Negative]
---              , [binary "*" Multiply, binary "/" Divide]
---              , [binary "+" Add, binary "-" Subtract]
---              ]
---   where
---     binary opName op = Infix (reservedOpParser opName >> return (ArithmeticBinary op)) AssocLeft
---     prefix  opName op = Prefix (do
---                                 reservedOpParser opName
---                                 return op )
-
--- aTerm =  parensParser aExpression
---         <|> (reservedParser "True"  >> return (BoolConstL True ))
---         <|> (reservedParser "False" >> return (BoolConstL False))
---         <|> Var <$> identifierParser
---         <|> FloatConst <$> try floatParser
---         <|> IntConst <$> integerParser
 
 literalIndentifierExpression :: Parser LiteralIdentifier
 literalIndentifierExpression = buildExpressionParser literalIdentifierOperators literalIdentifierTerm
@@ -435,14 +369,6 @@ listParExpression = buildExpressionParser listOperators literalIdentifierTerm
 
 listOperators = [ ]
 
--- listTerm =  parensParser listParExpression
---      <|> (reservedParser "True"  >> return (LBoolConst True ))
---      <|> (reservedParser "False" >> return (LBoolConst False))
---      <|> LVar <$> identifierParser
---      <|> LFloatConst <$> try floatParser
---      <|> LIntConst <$> integerParser
-
--- varExpr = try aExpression <|> try logicalExpression
 
 parseListVar :: Parser ArithmeticExprNEW
 parseListVar = do
