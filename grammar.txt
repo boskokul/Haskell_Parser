@@ -1,0 +1,50 @@
+<LiteralIdentifier> ::= VarLI String
+                     | IntConstLI Integer
+                     | FloatConstLI Double
+                     | BoolConstLI Bool
+                     | String String
+
+<ArithmeticExprNEW> ::= Neg <ArithmeticExprNEW>
+                      | VarExpr <LiteralIdentifier>
+                      | LiteralExpr <LiteralIdentifier>
+                      | ArithmeticBinaryExpr <ArithmBinOpNEW> <ArithmeticExprNEW> <ArithmeticExprNEW>
+                      | List [<LiteralIdentifier>]
+                      | FunctionCallNew String [<LiteralIdentifier>]
+                      | EExpr <ArithmeticExprNEW>
+
+<ArithmBinOpNEW> ::= Plus
+                   | Minus
+                   | Times
+                   | Divided
+
+<LogicalExpr> ::= LogicalVar <LiteralIdentifier>
+                | Not <LogicalExpr>
+                | LogicalBinary <LogicalBinOp> <LogicalExpr> <LogicalExpr>
+                | RelationalBinary <RelationalBinOp> <ArithmeticExprNEW> <ArithmeticExprNEW>
+
+<LogicalBinOp> ::= And
+                | Or
+
+<RelationalBinOp> ::= Greater
+                   | Less
+                   | GreaterEqual
+                   | LessEqual
+                   | Equal
+                   | NotEqual
+
+<Type> ::= RegularType String
+         | ListType String
+         | FunctionType [<Type>]
+
+<Branch> ::= Branch String <LiteralIdentifier>
+
+<Stmt> ::= Sequence [<Stmt>]
+         | LetIn <Stmt> <Stmt>
+         | TypeDeclaration String <Type>
+         | If <LogicalExpr> <Stmt> <Stmt>
+         | FunctionDeclaration String [String] <ArithmeticExprNEW>
+         | CaseOf <ArithmeticExprNEW> [<Branch>]
+         | AssignNew <LiteralIdentifier> <Stmt>
+         | NoWhere
+         | AssigRegular <ArithmeticExprNEW> <Stmt>
+         | EmbeddedExpression <ArithmeticExprNEW>
