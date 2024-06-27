@@ -10,9 +10,7 @@ p = f (b x)
 -}
 f1 :: [Integer]-> Bool -> String
 f1 = 2 + b * c
-case x of
-    w -> "gft"
-    c -> "abc"
+-- comment again
 a = f1 ( b  3 3 )
 inc a = a + 1
 let a = 5; i = 4 in a + 4; w +2
@@ -24,15 +22,20 @@ s = [2,3]
 s = [r1,r2]
 s = [True,False]
 s = [1.4,5.6]
-case x of
-    w -> t
-    c -> r
-case x of
-    w -> 12
-    c -> 10
+-- case x of
+--     w -> t
+--     c -> r
+-- case x of
+--     w -> 12
+--     c -> 10
 
 m = let a = 5; i = 4 in a + 4
 m = if True && False then b + 3 else b + 4
 m = case x of
-    w -> t
-    c -> r
+    w -> 12
+    c -> 10
+
+numToString x = case x of
+  1 -> "jedan"
+  2 -> "dva"
+  

@@ -11,14 +11,16 @@ data LiteralIdentifier  = VarLI String
                         | String String
                         deriving (Show)
 
-data ArithmeticExprNEW = Neg ArithmeticExprNEW
-                        | VarExpr LiteralIdentifier
-                        | LiteralExpr LiteralIdentifier
-                        | ArithmeticBinaryExpr ArithmBinOpNEW ArithmeticExprNEW ArithmeticExprNEW
-                        | List [LiteralIdentifier]
-                        | FunctionCallNew String [LiteralIdentifier]
-                        | EExpr ArithmeticExprNEW
-                            deriving (Show)
+data Expression = Neg Expression
+                    | VarExpr LiteralIdentifier
+                    | LiteralExpr LiteralIdentifier
+                    | ArithmeticBinaryExpr ArithmBinOpNEW Expression Expression
+                    | List [LiteralIdentifier]
+                    | FunctionCallNew String [LiteralIdentifier]
+                    | EExpr Expression
+                    | CaseOfNew Expression [Branch]
+                        deriving (Show)
+
 
 data ArithmBinOpNEW = Plus
                  | Minus
@@ -30,7 +32,7 @@ data ArithmBinOpNEW = Plus
 data LogicalExpr = LogicalVar LiteralIdentifier
                | Not LogicalExpr
                | LogicalBinary LogicalBinOp LogicalExpr LogicalExpr
-               | RelationalBinary RelationalBinOp ArithmeticExprNEW ArithmeticExprNEW
+               | RelationalBinary RelationalBinOp Expression Expression
                 deriving (Show)
 
 data LogicalBinOp = And
@@ -51,11 +53,11 @@ data Type = RegularType String
             deriving Show
 
 
-data Branch = Branch String LiteralIdentifier
-            -- deriving Show
+data Branch = Branch LiteralIdentifier LiteralIdentifier
+            deriving Show
 
 showIndented indentLevel (Branch s a) =
-                replicate (indentLevel * 4) ' ' ++ "Branch " ++ s ++ " (" ++ show a ++ ")"
+                replicate (indentLevel * 4) ' ' ++ "Branch " ++ show s ++ " (" ++ show a ++ ")"
 
 showBranch indentLevel branch = showIndented indentLevel branch
             
@@ -64,12 +66,12 @@ data Stmt = Sequence [Stmt]
           | LetIn Stmt Stmt
           | TypeDeclaration String Type
           | If LogicalExpr Stmt Stmt
-          | FunctionDeclaration String [String] ArithmeticExprNEW
-          | CaseOf ArithmeticExprNEW [Branch]
+          | FunctionDeclaration String [String] Expression
+        --   | CaseOf Expression [Branch]
           | AssignNew LiteralIdentifier Stmt
           | NoWhere
-          | AssignRegular ArithmeticExprNEW Stmt
-          | EmbeddedExpression ArithmeticExprNEW
+          | AssignRegular Expression Stmt
+          | EmbeddedExpression Expression
             -- deriving (Show)
 
 instance Show Stmt where
@@ -87,8 +89,8 @@ instance Show Stmt where
                 replicate (indentLevel * 4) ' ' ++ "If (" ++ show l ++ ") \n" ++ showStmt (indentLevel + 1) stmt1 ++ " \n" ++ showStmt (indentLevel + 1) stmt2
             showIndented indentLevel (FunctionDeclaration s params a) =
                 replicate (indentLevel * 4) ' ' ++ "FunctionDeclaration " ++ s ++ " " ++ show params ++ " (" ++ show a ++ ")"
-            showIndented indentLevel (CaseOf a branches) =
-                replicate (indentLevel * 4) ' ' ++ "CaseOf" ++ " (" ++ show a ++ ") " ++ "[\n" ++ intercalate ",\n" (map (showBranch (indentLevel + 1)) branches)  ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
+            -- showIndented indentLevel (CaseOf a branches) =
+            --     replicate (indentLevel * 4) ' ' ++ "CaseOf" ++ " (" ++ show a ++ ") " ++ "[\n" ++ intercalate ",\n" (map (showBranch (indentLevel + 1)) branches)  ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
             showIndented _ NoWhere = "NoWhere"
             showIndented indentLevel (AssignRegular expr stmt) =
                 " " ++ " (" ++ show expr ++ ") " ++ showStmt (indentLevel + 1) stmt
@@ -140,7 +142,7 @@ literalParser = choice
         BoolConstLI <$> boolParser
     ]
 
-arithmeticExprNewParser :: Parser ArithmeticExprNEW
+arithmeticExprNewParser :: Parser Expression
 arithmeticExprNewParser = buildExpressionParser operatorTable term <?> "expression"
     where
         term = choice
@@ -162,7 +164,7 @@ assignmentStmParser :: Parser Stmt
 assignmentStmParser = do
     var <- variableParser
     _ <- reservedOpParser "="
-    expr <- parseExpr <|> letInStmt <|> ifStmt <|> caseOfStmt
+    expr <- parseExpr <|> letInStmt <|> ifStmt          -- <|> caseOfStmt
     return $ AssignNew var expr
 
 parseExpr = do 
@@ -183,7 +185,7 @@ sequenceOfStmt =
 
 subStatement :: Parser Stmt
 subStatement = do
-  try assignmentStmParser <|> try typeStmt <|> functionDeclaration <|> letInStmt <|> ifStmt <|> caseOfStmt 
+  try assignmentStmParser <|> try typeStmt <|> functionDeclaration <|> letInStmt <|> ifStmt     -- <|> caseOfStmt 
 
 embeddedStmt =
   do list <- (subStatement <* spaces) `sepBy1` semiParser
@@ -254,7 +256,7 @@ identifierParserF = do try identifierParser
 
 parseParametersFC = manyTill (many space *> literalIdentifierTerm <* many space) (reservedOpParser ")")
 
-functionCall :: Parser ArithmeticExprNEW
+functionCall :: Parser Expression
 functionCall = do  
       f1  <- identifierParser
       _ <- reservedOpParser "("
@@ -298,20 +300,20 @@ parseInt = do
 
 parseBranche :: Parser Branch
 parseBranche = do
-     name <- identifierParser
+     name <- try parseId <|> parseInt
      _  <- reservedOpParser "->"
      expr <- whiteSpaceParser *> try quotedIdentifier <|> parseId <|> parseInt
      return $ Branch name expr
 
-caseOfStmt :: Parser Stmt
-caseOfStmt =
-  do reservedParser "case"
-     expr  <- arithmeticExprNewParser
-     mOf <- optionMaybe (try (reservedParser "of"))
-     branches <- case mOf of
-        Just _ -> try parseBranches
-        Nothing -> fail "missing of clause"
-     return $ CaseOf expr branches
+-- caseOfStmt :: Parser Stmt
+-- caseOfStmt =
+--   do reservedParser "case"
+--      expr  <- arithmeticExprNewParser
+--      mOf <- optionMaybe (try (reservedParser "of"))
+--      branches <- case mOf of
+--         Just _ -> try parseBranches
+--         Nothing -> fail "missing of clause"
+--      return $ CaseOf expr branches
 
 logicalExpression :: Parser LogicalExpr
 logicalExpression = buildExpressionParser lOperators lTerm
@@ -347,10 +349,18 @@ functionDeclaration = do
     name <- identifierParser
     args <- parseArguments
     _ <- reservedOpParser "="
-    body <- try arithmeticExprNewParser
+    body <- try arithmeticExprNewParser <|> try caseOfStmtNew
     return (FunctionDeclaration name args body)
 
-
+caseOfStmtNew :: Parser Expression
+caseOfStmtNew =
+  do reservedParser "case"
+     expr  <- arithmeticExprNewParser
+     mOf <- optionMaybe (try (reservedParser "of"))
+     branches <- case mOf of
+        Just _ -> try parseBranches
+        Nothing -> fail "missing of clause"
+     return $ CaseOfNew expr branches
 
 literalIndentifierExpression :: Parser LiteralIdentifier
 literalIndentifierExpression = buildExpressionParser literalIdentifierOperators literalIdentifierTerm
@@ -370,7 +380,7 @@ listParExpression = buildExpressionParser listOperators literalIdentifierTerm
 listOperators = [ ]
 
 
-parseListVar :: Parser ArithmeticExprNEW
+parseListVar :: Parser Expression
 parseListVar = do
     _ <- reservedOpParser "["
     vars <- listParExpression `sepBy` commaParser

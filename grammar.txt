@@ -1,50 +1,10 @@
-<LiteralIdentifier> ::= VarLI String
-                     | IntConstLI Integer
-                     | FloatConstLI Double
-                     | BoolConstLI Bool
-                     | String String
 
-<ArithmeticExprNEW> ::= Neg <ArithmeticExprNEW>
-                      | VarExpr <LiteralIdentifier>
-                      | LiteralExpr <LiteralIdentifier>
-                      | ArithmeticBinaryExpr <ArithmBinOpNEW> <ArithmeticExprNEW> <ArithmeticExprNEW>
-                      | List [<LiteralIdentifier>]
-                      | FunctionCallNew String [<LiteralIdentifier>]
-                      | EExpr <ArithmeticExprNEW>
 
-<ArithmBinOpNEW> ::= Plus
-                   | Minus
-                   | Times
-                   | Divided
+	inc a = a + 1
 
-<LogicalExpr> ::= LogicalVar <LiteralIdentifier>
-                | Not <LogicalExpr>
-                | LogicalBinary <LogicalBinOp> <LogicalExpr> <LogicalExpr>
-                | RelationalBinary <RelationalBinOp> <ArithmeticExprNEW> <ArithmeticExprNEW>
+	add a b = a + b
 
-<LogicalBinOp> ::= And
-                | Or
 
-<RelationalBinOp> ::= Greater
-                   | Less
-                   | GreaterEqual
-                   | LessEqual
-                   | Equal
-                   | NotEqual
+FunctionDeclaration inc ["a"] (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (LiteralExpr (IntConstLI 1)))
 
-<Type> ::= RegularType String
-         | ListType String
-         | FunctionType [<Type>]
-
-<Branch> ::= Branch String <LiteralIdentifier>
-
-<Stmt> ::= Sequence [<Stmt>]
-         | LetIn <Stmt> <Stmt>
-         | TypeDeclaration String <Type>
-         | If <LogicalExpr> <Stmt> <Stmt>
-         | FunctionDeclaration String [String] <ArithmeticExprNEW>
-         | CaseOf <ArithmeticExprNEW> [<Branch>]
-         | AssignNew <LiteralIdentifier> <Stmt>
-         | NoWhere
-         | AssignRegular <ArithmeticExprNEW> <Stmt>
-         | EmbeddedExpression <ArithmeticExprNEW>
+FunctionDeclaration add ["a","b"] (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (VarExpr (VarLI "b")))
