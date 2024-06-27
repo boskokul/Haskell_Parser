@@ -24,8 +24,8 @@ s = [True,False]
 s = [1.4,5.6]
 
 
-m = let a = 5; i = 4 in a + 4
-m = if True && False then b + 3 else b + 4
+m a = let a = 5; i = 4 in a + 4
+m b = if True && False then b + 3 else b + 4
 m = case x of
     w -> 12
     c -> 10
@@ -40,3 +40,7 @@ numToString x = case x of
 -- case x of
 --     w -> 12
 --     c -> 10
+
+absoluteDifference a b =
+    let diff = if a > b then a - b else b - a
+    in diff

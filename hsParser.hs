@@ -56,20 +56,21 @@ data Type = RegularType String
 data Branch = Branch LiteralIdentifier LiteralIdentifier
             deriving Show
 
--- showIndented indentLevel (Branch s a) =
---                 replicate (indentLevel * 4) ' ' ++ "Branch " ++ show s ++ " (" ++ show a ++ ")"
+showIndented indentLevel (Branch s a) =
+                replicate (indentLevel * 4) ' ' ++ "Branch " ++ show s ++ " (" ++ show a ++ ")"
 
--- showBranch indentLevel branch = showIndented indentLevel branch
+showBranch indentLevel branch = showIndented indentLevel branch
             
 
 data Stmt = Sequence [Stmt]
           | LetIn Stmt Stmt
           | TypeDeclaration String Type
           | If LogicalExpr Stmt Stmt
-          | FunctionDeclaration String [String] Expression
+          | FunctionDeclaration String [String] Stmt
           | AssignNew LiteralIdentifier Stmt
           | NoWhere
           | AssignRegular Expression Stmt
+          | CaseOfStm Expression [Branch]
           | EmbeddedExpression Expression
             -- deriving (Show)
 
@@ -87,9 +88,9 @@ instance Show Stmt where
             showIndented indentLevel (If l stmt1 stmt2) =
                 replicate (indentLevel * 4) ' ' ++ "If (" ++ show l ++ ") \n" ++ showStmt (indentLevel + 1) stmt1 ++ " \n" ++ showStmt (indentLevel + 1) stmt2
             showIndented indentLevel (FunctionDeclaration s params a) =
-                replicate (indentLevel * 4) ' ' ++ "FunctionDeclaration " ++ s ++ " " ++ show params ++ " (" ++ show a ++ ")"
-            -- showIndented indentLevel (CaseOf a branches) =
-            --     replicate (indentLevel * 4) ' ' ++ "CaseOf" ++ " (" ++ show a ++ ") " ++ "[\n" ++ intercalate ",\n" (map (showBranch (indentLevel + 1)) branches)  ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
+                replicate (indentLevel * 4) ' ' ++ "FunctionDeclaration " ++ s ++ " " ++ show params ++ " (" ++ showStmt (indentLevel + 1) a ++ ")"
+            showIndented indentLevel (CaseOfStm a branches) =
+                replicate (indentLevel * 4) ' ' ++ "CaseOf" ++ " (" ++ show a ++ ") " ++ "[\n" ++ intercalate ",\n" (map (showBranch (indentLevel + 1)) branches)  ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
             showIndented _ NoWhere = "NoWhere"
             showIndented indentLevel (AssignRegular expr stmt) =
                 " " ++ " (" ++ show expr ++ ") " ++ showStmt (indentLevel + 1) stmt
@@ -304,15 +305,6 @@ parseBranche = do
      expr <- whiteSpaceParser *> try quotedIdentifier <|> parseId <|> parseInt
      return $ Branch name expr
 
--- caseOfStmt :: Parser Stmt
--- caseOfStmt =
---   do reservedParser "case"
---      expr  <- arithmeticExprNewParser
---      mOf <- optionMaybe (try (reservedParser "of"))
---      branches <- case mOf of
---         Just _ -> try parseBranches
---         Nothing -> fail "missing of clause"
---      return $ CaseOf expr branches
 
 logicalExpression :: Parser LogicalExpr
 logicalExpression = buildExpressionParser lOperators lTerm
@@ -348,8 +340,18 @@ functionDeclaration = do
     name <- identifierParser
     args <- parseArguments
     _ <- reservedOpParser "="
-    body <- try arithmeticExprNewParser <|> try caseOfStmtNew
+    body <- try caseOfStmt <|> try parseExpr <|> letInStmt <|> ifStmt
     return (FunctionDeclaration name args body)
+
+caseOfStmt :: Parser Stmt
+caseOfStmt =
+  do reservedParser "case"
+     expr  <- arithmeticExprNewParser
+     mOf <- optionMaybe (try (reservedParser "of"))
+     branches <- case mOf of
+        Just _ -> try parseBranches
+        Nothing -> fail "missing of clause"
+     return $ CaseOfStm expr branches
 
 caseOfStmtNew :: Parser Expression
 caseOfStmtNew =
