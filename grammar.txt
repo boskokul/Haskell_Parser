@@ -1,10 +1,67 @@
+<program> ::= <stmt> | <stmt> <program>
 
+<stmt> ::= <type_declaration> | <expression> | <variable_assignment> | <let_in_stm> | <if_stm>
 
-	inc a = a + 1
+<type_declaration> ::= <regular_type_declaration> | <function_type_declaration>
 
-	add a b = a + b
+<type> ::= 'Integer'
+         | '[Integer]'
+         | '[Bool]'
+         | 'Bool'
+         | 'String'
+         | '[String]'
+         | 'Float'
+         | '[Float]'
 
+<regular_type_declaration> ::= <identifier> '::' <type>
 
-FunctionDeclaration inc ["a"] (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (LiteralExpr (IntConstLI 1)))
+<function_type_annotation> ::= <type> '->' <function_type_annotation> | <type>
 
-FunctionDeclaration add ["a","b"] (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (VarExpr (VarLI "b")))
+<function_type_declaration> ::= <identifier> '::' <function_type_annotation>
+
+<functionDeclaration> ::= <identifier> <parameterList> '=' <expression>
+
+<parameterList> ::= <identifier>
+                  | <identifier> ' ' <parameterList>
+
+<variable_assignment> ::= <identifier> '=' <expression> [<where_clause>]
+
+<where_clause> ::= 'where' <variable_assignments> 
+                  | 'NoWhere'
+
+<variable_assignments> ::= <variable_assignment>
+                         | <variable_assignment> ';' <variable_assignments>
+
+<expression> ::= <literal>
+               | <identifier>
+               | <function_call>
+               | '(' <expression> ')'
+               | <expression> <arithmetic_binary_operator> <expression>
+               | '-' <expression>
+               | 'case' <expression> 'of' '{' <pattern_match> '}'
+
+<let_in_stm> ::= 'let' <variable_assignments> 'in' <stmt>
+
+<if_stm> ::= 'if' <logical_expression> 'then' <stmt> 'else' <stmt>
+
+<logical_expression> ::= <boolean>
+                | '(' <expression> ')'
+                | <logical_expression> <logical_binary_operator> <logical_expression>
+                | <expression> <relational_binary_operator> <expression>
+                | 'not' <logical_expression>
+
+<literal> ::= <integer>
+            | <float>
+            | <boolean>
+            | <string>
+
+<function_call> ::= <identifier> '(' <argument_list> ')'
+
+<argument_list> ::= <literal_identifier> ',' <argument_list>
+                    | <literal_identifier>
+
+<pattern_match> ::= <literal_identifier> '->' <literal_identifier>
+                  | <literal_identifier> '->' <literal_identifier> '|' <pattern_match>
+
+<literal_identifier> ::= <identifier> | <literal> | <quoted_string>
+

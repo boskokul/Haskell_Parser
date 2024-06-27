@@ -12,14 +12,14 @@ data LiteralIdentifier  = VarLI String
                         deriving (Show)
 
 data Expression = Neg Expression
-                    | VarExpr LiteralIdentifier
-                    | LiteralExpr LiteralIdentifier
-                    | ArithmeticBinaryExpr ArithmBinOpNEW Expression Expression
-                    | List [LiteralIdentifier]
-                    | FunctionCallNew String [LiteralIdentifier]
-                    | EExpr Expression
-                    | CaseOfNew Expression [Branch]
-                        deriving (Show)
+                | VarExpr LiteralIdentifier
+                | LiteralExpr LiteralIdentifier
+                | ArithmeticBinaryExpr ArithmBinOpNEW Expression Expression
+                | List [LiteralIdentifier]
+                | FunctionCallNew String [LiteralIdentifier]
+                | EExpr Expression
+                | CaseOf Expression [Branch]
+                    deriving (Show)
 
 
 data ArithmBinOpNEW = Plus
@@ -56,10 +56,10 @@ data Type = RegularType String
 data Branch = Branch LiteralIdentifier LiteralIdentifier
             deriving Show
 
-showIndented indentLevel (Branch s a) =
-                replicate (indentLevel * 4) ' ' ++ "Branch " ++ show s ++ " (" ++ show a ++ ")"
+-- showIndented indentLevel (Branch s a) =
+--                 replicate (indentLevel * 4) ' ' ++ "Branch " ++ show s ++ " (" ++ show a ++ ")"
 
-showBranch indentLevel branch = showIndented indentLevel branch
+-- showBranch indentLevel branch = showIndented indentLevel branch
             
 
 data Stmt = Sequence [Stmt]
@@ -67,7 +67,6 @@ data Stmt = Sequence [Stmt]
           | TypeDeclaration String Type
           | If LogicalExpr Stmt Stmt
           | FunctionDeclaration String [String] Expression
-        --   | CaseOf Expression [Branch]
           | AssignNew LiteralIdentifier Stmt
           | NoWhere
           | AssignRegular Expression Stmt
@@ -100,7 +99,7 @@ instance Show Stmt where
             showStmt indentLevel stmt = showIndented indentLevel stmt
 
 acceptableTypes :: [String]
-acceptableTypes = ["Integer", "String", "Bool"]
+acceptableTypes = ["Integer", "String", "Bool", "Float"]
 
 languageDef = emptyDef  {  Token.commentStart    = "{-",
                            Token.commentEnd      = "-}",
@@ -360,7 +359,7 @@ caseOfStmtNew =
      branches <- case mOf of
         Just _ -> try parseBranches
         Nothing -> fail "missing of clause"
-     return $ CaseOfNew expr branches
+     return $ CaseOf expr branches
 
 literalIndentifierExpression :: Parser LiteralIdentifier
 literalIndentifierExpression = buildExpressionParser literalIdentifierOperators literalIdentifierTerm

@@ -40,6 +40,6 @@ Sequence [
     AssignNew VarLI "m"        If (LogicalBinary And (LogicalVar (BoolConstLI True)) (LogicalVar (BoolConstLI False))) 
              ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "b")) (LiteralExpr (IntConstLI 3))) )  
              ( EExpr (ArithmeticBinaryExpr Plus (VarExpr (VarLI "b")) (LiteralExpr (IntConstLI 4))) ) ,
-    FunctionDeclaration m [] (CaseOfNew (VarExpr (VarLI "x")) [Branch (VarLI "w") (IntConstLI 12),Branch (VarLI "c") (IntConstLI 10)]),
-    FunctionDeclaration numToString ["x"] (CaseOfNew (VarExpr (VarLI "x")) [Branch (IntConstLI 1) (String "jedan"),Branch (IntConstLI 2) (String "dva")])
+    FunctionDeclaration m [] (CaseOf (VarExpr (VarLI "x")) [Branch (VarLI "w") (IntConstLI 12),Branch (VarLI "c") (IntConstLI 10)]),
+    FunctionDeclaration numToString ["x"] (CaseOf (VarExpr (VarLI "x")) [Branch (IntConstLI 1) (String "jedan"),Branch (IntConstLI 2) (String "dva")])
 ]

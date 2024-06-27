@@ -22,12 +22,7 @@ s = [2,3]
 s = [r1,r2]
 s = [True,False]
 s = [1.4,5.6]
--- case x of
---     w -> t
---     c -> r
--- case x of
---     w -> 12
---     c -> 10
+
 
 m = let a = 5; i = 4 in a + 4
 m = if True && False then b + 3 else b + 4
@@ -39,3 +34,9 @@ numToString x = case x of
   1 -> "jedan"
   2 -> "dva"
   
+-- case x of
+--     w -> t
+--     c -> r
+-- case x of
+--     w -> 12
+--     c -> 10
