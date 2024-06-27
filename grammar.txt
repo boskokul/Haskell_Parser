@@ -2,8 +2,6 @@
 
 <stmt> ::= <type_declaration> 
 	| <variable_assignment> 
-	| <let_in_stm> 	
-	| <if_stm>
 
 
 
@@ -50,6 +48,8 @@
                | <expression> <arithmetic_binary_operator> <expression>
                | '-' <expression>
                | 'case' <expression> 'of' '{' <pattern_match> '}'
+               | <let_in_stm> 	
+	           | <if_stm>
 
 
 

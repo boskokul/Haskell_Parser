@@ -48,6 +48,9 @@ Sequence [
             Branch IntConstLI 1 (String "jedan"),
             Branch IntConstLI 2 (String "dva")
         ]),
+    FunctionDeclaration maxOfTwo ["a","b"] (        If (RelationalBinary GreaterEqual (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))) 
+             ( EExpr (VarExpr (VarLI "a")) )  
+             ( EExpr (VarExpr (VarLI "b")) ) ),
     FunctionDeclaration absoluteDifference ["a","b"] (        LetIn             AssignNew VarLI "diff"                If (RelationalBinary Greater (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))) 
                      ( EExpr (ArithmeticBinaryExpr Minus (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))) )  
                      ( EExpr (ArithmeticBinaryExpr Minus (VarExpr (VarLI "b")) (VarExpr (VarLI "a"))) )               ( EExpr (VarExpr (VarLI "diff")) ) )

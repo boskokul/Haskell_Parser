@@ -41,6 +41,11 @@ numToString x = case x of
 --     w -> 12
 --     c -> 10
 
+maxOfTwo a b= 
+    if a >= b
+    then a
+    else b
+
 absoluteDifference a b =
     let diff = if a > b then a - b else b - a
     in diff
