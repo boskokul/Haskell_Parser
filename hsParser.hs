@@ -401,6 +401,7 @@ parseFile file =
        Left e  -> print e >> fail "parse error"
        Right r -> return r
 
+writeFileOutput :: FilePath -> IO ()
 writeFileOutput file =
   do haskellCode  <- readFile file
      case parse haskellParser "" haskellCode of

@@ -1,6 +1,7 @@
 <program> ::= <stmt> | <stmt> <program>
 
 <stmt> ::= <type_declaration> 
+	| <functionDeclaration>
 	| <variable_assignment> 
 
 
@@ -49,15 +50,19 @@
                | '-' <expression>
                | 'case' <expression> 'of' '{' <pattern_match> '}'
                | <let_in_stm> 	
-	           | <if_stm>
+	       | <if_stm>
 
+<pattern_match> ::= <literal_identifier> '->' <literal_identifier>
+                  | <literal_identifier> '->' <literal_identifier> '|' <pattern_match>
+
+<literal_identifier> ::= <identifier> | <literal> | <quoted_string>
+
+<literal> ::= <integer> | <float> | <boolean> | <string>
 
 
 <let_in_stm> ::= 'let' <variable_assignments> 'in' <stmt>
 
 <if_stm> ::= 'if' <logical_expression> 'then' <stmt> 'else' <stmt>
-
-
 
 <logical_expression> ::= <boolean>
                 | '(' <expression> ')'
@@ -65,10 +70,6 @@
                 | <expression> <relational_binary_operator> <expression>
                 | 'not' <logical_expression>
 
-<literal> ::= <integer>
-            | <float>
-            | <boolean>
-            | <string>
 
 
 <function_call> ::= <identifier> '(' <argument_list> ')'
@@ -78,9 +79,5 @@
 
 
 
-<pattern_match> ::= <literal_identifier> '->' <literal_identifier>
-                  | <literal_identifier> '->' <literal_identifier> '|' <pattern_match>
 
-
-<literal_identifier> ::= <identifier> | <literal> | <quoted_string>
 
