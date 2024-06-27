@@ -46,5 +46,5 @@
          | CaseOf <ArithmeticExprNEW> [<Branch>]
          | AssignNew <LiteralIdentifier> <Stmt>
          | NoWhere
-         | AssigRegular <ArithmeticExprNEW> <Stmt>
+         | AssignRegular <ArithmeticExprNEW> <Stmt>
          | EmbeddedExpression <ArithmeticExprNEW>

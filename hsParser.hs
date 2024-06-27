@@ -68,7 +68,7 @@ data Stmt = Sequence [Stmt]
           | CaseOf ArithmeticExprNEW [Branch]
           | AssignNew LiteralIdentifier Stmt
           | NoWhere
-          | AssigRegular ArithmeticExprNEW Stmt
+          | AssignRegular ArithmeticExprNEW Stmt
           | EmbeddedExpression ArithmeticExprNEW
             -- deriving (Show)
 
@@ -90,7 +90,7 @@ instance Show Stmt where
             showIndented indentLevel (CaseOf a branches) =
                 replicate (indentLevel * 4) ' ' ++ "CaseOf" ++ " (" ++ show a ++ ") " ++ "[\n" ++ intercalate ",\n" (map (showBranch (indentLevel + 1)) branches)  ++ "\n" ++ replicate (indentLevel * 4) ' ' ++ "]"
             showIndented _ NoWhere = "NoWhere"
-            showIndented indentLevel (AssigRegular expr stmt) =
+            showIndented indentLevel (AssignRegular expr stmt) =
                 " " ++ " (" ++ show expr ++ ") " ++ showStmt (indentLevel + 1) stmt
             showIndented indentLevel (EmbeddedExpression a) =
                 replicate (indentLevel * 4) ' ' ++ " ( " ++ show a ++ " ) "
@@ -171,7 +171,7 @@ parseExpr = do
     pairsWhere <- case mWhere of
         Just _ -> embeddedStmt
         Nothing -> return NoWhere
-    return $ AssigRegular expr pairsWhere
+    return $ AssignRegular expr pairsWhere
 
 statement :: Parser Stmt
 statement =   parensParser statement
