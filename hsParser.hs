@@ -21,13 +21,11 @@ data Expression = Neg Expression
                 | CaseOf Expression [Branch]
                     deriving (Show)
 
-
 data ArithmBinOpNEW = Plus
                  | Minus
                  | Times
                  | Divided
                  deriving (Show)
-
 
 data LogicalExpr = LogicalVar LiteralIdentifier
                | Not LogicalExpr
@@ -52,7 +50,6 @@ data Type = RegularType String
             | FunctionType [Type]
             deriving Show
 
-
 data Branch = Branch LiteralIdentifier LiteralIdentifier
             deriving Show
 
@@ -61,7 +58,6 @@ showIndented indentLevel (Branch s a) =
 
 showBranch indentLevel branch = showIndented indentLevel branch
             
-
 data Stmt = Sequence [Stmt]
           | LetIn Stmt Stmt
           | TypeDeclaration String Type
@@ -99,8 +95,6 @@ instance Show Stmt where
 
             showStmt indentLevel stmt = showIndented indentLevel stmt
 
-acceptableTypes :: [String]
-acceptableTypes = ["Integer", "String", "Bool", "Float"]
 
 languageDef = emptyDef  {  Token.commentStart    = "{-",
                            Token.commentEnd      = "-}",
@@ -130,7 +124,8 @@ commaParser = Token.comma lexer
 
 
 boolParser :: Parser Bool
-boolParser = (reserved lexer "True" >> return True) <|> (reservedParser "False" >> return False)
+boolParser = (reserved lexer "True" >> return True) 
+            <|> (reservedParser "False" >> return False)
 
 variableParser :: Parser LiteralIdentifier
 variableParser = VarLI <$> identifierParser
@@ -143,33 +138,36 @@ literalParser = choice
     ]
 
 arithmeticExprNewParser :: Parser Expression
-arithmeticExprNewParser = buildExpressionParser operatorTable term <?> "expression"
+arithmeticExprNewParser = buildExpressionParser operatorTable term
     where
         term = choice
             [ Neg <$> (reservedOp lexer "-" >> term)
-            , parens lexer arithmeticExprNewParser
+            , parensParser arithmeticExprNewParser
             , LiteralExpr <$> literalParser
             , VarExpr <$> variableParser
             ]
 
-        operatorTable = [ [prefix "-" Neg]
+        operatorTable = [ [Prefix (reservedOp lexer "-" >> return Neg)]
                         , [binary "*" Times AssocLeft, binary "/" Divided AssocLeft]
                         , [binary "+" Plus AssocLeft, binary "-" Minus AssocLeft]
                         ]
         binary name fun = Infix (reservedOp lexer name >> return (ArithmeticBinaryExpr fun))
-        prefix name fun = Prefix (reservedOp lexer name >> return fun)
+       
+       
+        -- prefix name fun = Prefix (reservedOp lexer name >> return fun)
 
 
 assignmentStmParser :: Parser Stmt
 assignmentStmParser = do
     var <- variableParser
     _ <- reservedOpParser "="
-    expr <- parseExpr <|> letInStmt <|> ifStmt          -- <|> caseOfStmt
+    expr <- parseExpr                                                               
     return $ AssignNew var expr
 
+parseExpr :: Parser Stmt
 parseExpr = do 
     expr <- try functionCall <|> parseListVar <|> arithmeticExprNewParser
-    mWhere <- optionMaybe (try (reservedParser "where"))
+    mWhere <- optionMaybe (reservedParser "where")
     pairsWhere <- case mWhere of
         Just _ -> embeddedStmt
         Nothing -> return NoWhere
@@ -179,14 +177,16 @@ statement :: Parser Stmt
 statement =   parensParser statement
           <|> sequenceOfStmt
 
+sequenceOfStmt :: Parser Stmt
 sequenceOfStmt =
   do list <- many subStatement
      return $ if length list == 1 then head list else Sequence list
 
 subStatement :: Parser Stmt
 subStatement = do
-  try assignmentStmParser <|> try typeStmt <|> functionDeclaration <|> letInStmt <|> ifStmt     -- <|> caseOfStmt 
+  try assignmentStmParser <|> try typeStmt <|> functionDeclaration      -- <|> letInStmt <|> ifStmt     -- <|> caseOfStmt 
 
+embeddedStmt :: Parser Stmt
 embeddedStmt =
   do list <- (subStatement <* spaces) `sepBy1` semiParser
      return $ if length list == 1 then head list else Sequence list
@@ -201,7 +201,6 @@ embeddedExpression = do
     expr <- parseExpr2
     return $ EmbeddedExpression expr
 
--- ovo je za izraze unutar letIn i ifElseThen iskljucivo, inace subStatement a ne subStatement2 
 subStatement2 :: Parser Stmt
 subStatement2 = do
   try embeddedExpression
@@ -214,11 +213,14 @@ letInStmt :: Parser Stmt
 letInStmt =
   do reservedParser "let"
      stmt1 <- embeddedStmt
-     mIn <- optionMaybe (try (reservedParser "in"))
+     mIn <- optionMaybe (reservedParser "in")
      pairsIn <- case mIn of
         Just _ -> embeddedStmtExpr
         Nothing -> fail "missing in clause"
      return $ LetIn stmt1 pairsIn
+
+acceptableTypes :: [String]
+acceptableTypes = ["Integer", "String", "Bool", "Float"]
 
 parseRegularType :: Parser Type
 parseRegularType = do
@@ -252,36 +254,91 @@ typeStmt =
      return $ TypeDeclaration var typeName
 
 
-identifierParserF = do try identifierParser
+-- identifierParserF = do try identifierParser
 
-parseParametersFC = manyTill (many space *> literalIdentifierTerm <* many space) (reservedOpParser ")")
+parseArgsFC :: Parser [LiteralIdentifier]
+parseArgsFC = manyTill (many space *> literalIdentifierTerm <* many space) (reservedOpParser ")")
 
 functionCall :: Parser Expression
 functionCall = do  
       f1  <- identifierParser
       _ <- reservedOpParser "("
-      pars <- parseParametersFC
+      pars <- parseArgsFC
       return $ FunctionCallNew f1 pars
 
 ifStmt :: Parser Stmt
 ifStmt =
   do reservedParser "if"
      cond  <- logicalExpression
-     mThen <- optionMaybe (try (reservedParser "then"))
+     mThen <- optionMaybe (reservedParser "then")
      stmt1 <- case mThen of
         Just _ -> embeddedStmtExpr
         Nothing -> fail "missing then clause"
-     mElse <- optionMaybe (try (reservedParser "else"))
+     mElse <- optionMaybe (reservedParser "else")
      stmt2 <- case mElse of
         Just _ -> embeddedStmtExpr
         Nothing -> fail "missing else clause"
      return $ If cond stmt1 stmt2
+
+logicalExpression :: Parser LogicalExpr
+logicalExpression = buildExpressionParser lOperators lTerm
+
+lOperators = [ [Prefix (reservedOpParser "not" >> return Not)],
+               [Infix  (reservedOpParser "&&" >> return (LogicalBinary And)) AssocLeft,
+                Infix  (reservedOpParser "||"  >> return (LogicalBinary Or)) AssocLeft]
+             ]
+
+lTerm =  parensParser logicalExpression
+     <|> LogicalVar <$> (reservedParser "True"  >> return (BoolConstLI True ))
+     <|> LogicalVar <$> (reservedParser "False" >> return (BoolConstLI False))
+     <|> rExpression
+
+rExpression =
+  do a1 <- arithmeticExprNewParser
+     op <- rOperator
+     RelationalBinary op a1 <$> arithmeticExprNewParser
+
+rOperator =  (reservedOpParser ">" >> return Greater)
+         <|> (reservedOpParser "<" >> return Less)
+         <|> (reservedOpParser ">=" >> return GreaterEqual)
+         <|> (reservedOpParser "<=" >> return LessEqual)
+         <|> (reservedOpParser "==" >> return Equal)
+         <|> (reservedOpParser "!=" >> return NotEqual)
+
+parseParams :: Parser [String]
+parseParams= many (many space *> identifierParser <* many space)
+
+functionDeclaration :: Parser Stmt
+functionDeclaration = do
+    name <- identifierParser
+    args <- parseParams
+    _ <- reservedOpParser "="
+    body <- try caseOfStmt <|> try parseExpr <|> letInStmt <|> ifStmt
+    return (FunctionDeclaration name args body)
+
+caseOfStmt :: Parser Stmt
+caseOfStmt =
+  do reservedParser "case"
+     expr  <- arithmeticExprNewParser
+     mOf <- optionMaybe (reservedParser "of")
+     branches <- case mOf of
+        Just _ -> try parseBranches
+        Nothing -> fail "missing of clause"
+     return $ CaseOfStm expr branches
 
 parseBranches = do 
       list <- many1 embeddedBranches
       return $ list
 
 embeddedBranches = do try parseBranche
+
+parseBranche :: Parser Branch
+parseBranche = do
+     name <- try parseId <|> parseInt
+     _  <- reservedOpParser "->"
+     expr <- whiteSpaceParser *> try quotedIdentifier <|> parseId <|> parseInt
+     return $ Branch name expr
+
 
 quotedIdentifier = do
     _ <- char '"'
@@ -298,93 +355,28 @@ parseInt = do
     identifier <- integerParser
     return $ IntConstLI identifier
 
-parseBranche :: Parser Branch
-parseBranche = do
-     name <- try parseId <|> parseInt
-     _  <- reservedOpParser "->"
-     expr <- whiteSpaceParser *> try quotedIdentifier <|> parseId <|> parseInt
-     return $ Branch name expr
-
-
-logicalExpression :: Parser LogicalExpr
-logicalExpression = buildExpressionParser lOperators lTerm
-
-lOperators = [ [Prefix (reservedOpParser "not" >> return Not)],
-               [Infix  (reservedOpParser "&&" >> return (LogicalBinary And)) AssocLeft,
-                Infix  (reservedOpParser "||"  >> return (LogicalBinary Or)) AssocLeft]
-             ]
-
-lTerm =  parensParser logicalExpression
-     <|> LogicalVar <$> (reservedParser "True"  >> return (BoolConstLI True ))
-     <|> LogicalVar <$> (reservedParser "False" >> return (BoolConstLI False))
-     <|> rExpression
-
-
-rExpression =
-  do a1 <- arithmeticExprNewParser
-     op <- rOperator
-     RelationalBinary op a1 <$> arithmeticExprNewParser
-
-rOperator =  (reservedOpParser ">" >> return Greater)
-         <|> (reservedOpParser "<" >> return Less)
-         <|> (reservedOpParser ">=" >> return GreaterEqual)
-         <|> (reservedOpParser "<=" >> return LessEqual)
-         <|> (reservedOpParser "==" >> return Equal)
-         <|> (reservedOpParser "!=" >> return NotEqual)
-
-
-parseArguments = many (many space *> identifierParser <* many space)
-
-functionDeclaration :: Parser Stmt
-functionDeclaration = do
-    name <- identifierParser
-    args <- parseArguments
-    _ <- reservedOpParser "="
-    body <- try caseOfStmt <|> try parseExpr <|> letInStmt <|> ifStmt
-    return (FunctionDeclaration name args body)
-
-caseOfStmt :: Parser Stmt
-caseOfStmt =
-  do reservedParser "case"
-     expr  <- arithmeticExprNewParser
-     mOf <- optionMaybe (try (reservedParser "of"))
-     branches <- case mOf of
-        Just _ -> try parseBranches
-        Nothing -> fail "missing of clause"
-     return $ CaseOfStm expr branches
 
 caseOfStmtNew :: Parser Expression
 caseOfStmtNew =
   do reservedParser "case"
      expr  <- arithmeticExprNewParser
-     mOf <- optionMaybe (try (reservedParser "of"))
+     mOf <- optionMaybe (reservedParser "of")
      branches <- case mOf of
         Just _ -> try parseBranches
         Nothing -> fail "missing of clause"
      return $ CaseOf expr branches
 
-literalIndentifierExpression :: Parser LiteralIdentifier
-literalIndentifierExpression = buildExpressionParser literalIdentifierOperators literalIdentifierTerm
 
-literalIdentifierOperators = []
-
-literalIdentifierTerm =  parensParser literalIndentifierExpression
-        <|> (reservedParser "True"  >> return (BoolConstLI True ))
-        <|> (reservedParser "False" >> return (BoolConstLI False))
-        <|> VarLI <$> identifierParser
-        <|> FloatConstLI <$> try floatParser
-        <|> IntConstLI <$> integerParser
-
-listParExpression :: Parser LiteralIdentifier
-listParExpression = buildExpressionParser listOperators literalIdentifierTerm
-
-listOperators = [ ]
-
+literalIdentifierTerm = (reservedParser "True"  >> return (BoolConstLI True ))
+                    <|> (reservedParser "False" >> return (BoolConstLI False))
+                    <|> VarLI <$> identifierParser
+                    <|> FloatConstLI <$> try floatParser
+                    <|> IntConstLI <$> integerParser
 
 parseListVar :: Parser Expression
 parseListVar = do
     _ <- reservedOpParser "["
-    vars <- listParExpression `sepBy` commaParser
+    vars <- literalIdentifierTerm `sepBy1` commaParser
     _ <- reservedOpParser "]"
     return $ List vars
 
