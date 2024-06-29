@@ -1,7 +1,7 @@
 Sequence [
     TypeDeclaration b RegularType "Integer",
     AssignNew VarLI "b"  (ArithmeticBinaryExpr Plus (Neg (LiteralExpr (IntConstLI 6))) (LiteralExpr (IntConstLI 1))) NoWhere,
-    AssignNew VarLI "c"  (LiteralExpr (IntConstLI 4)) Sequence [
+    AssignNew VarLI "c"  (ArithmeticBinaryExpr Plus (VarExpr (VarLI "a")) (VarExpr (VarLI "b"))) Sequence [
                 AssignNew VarLI "a"  (LiteralExpr (IntConstLI 3)) NoWhere,
                 AssignNew VarLI "b"  (LiteralExpr (IntConstLI 5)) NoWhere
             ],
@@ -34,4 +34,3 @@ Sequence [
     FunctionDeclaration cubePerimeter ["edgeLength"] (        LetIn             AssignNew VarLI "numberOfEdges"  (LiteralExpr (IntConstLI 4)) NoWhere              
              ( EExpr (ArithmeticBinaryExpr Times (VarExpr (VarLI "edgeLength")) (VarExpr (VarLI "numberOfEdges"))) ) )
 ]
-

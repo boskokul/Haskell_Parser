@@ -1,6 +1,6 @@
 b :: Integer
 b = -6 + 1
-c = 4 where a = 3; b = 5
+c = a + b where a = 3; b = 5
 -- comment in line
 {- 
     block type of comment

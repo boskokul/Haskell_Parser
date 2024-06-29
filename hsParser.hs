@@ -4,22 +4,14 @@ import Text.ParserCombinators.Parsec.Language
 import Text.ParserCombinators.Parsec.Token as Token
 import Data.List
 
+
+
 data LiteralIdentifier  = VarLI String
                         | IntConstLI Integer
                         | FloatConstLI Double
                         | BoolConstLI Bool
                         | String String
                         deriving (Show)
-
-data Expression = Neg Expression
-                | VarExpr LiteralIdentifier
-                | LiteralExpr LiteralIdentifier
-                | ArithmeticBinaryExpr ArithmBinOpNEW Expression Expression
-                | List [LiteralIdentifier]
-                | FunctionCallNew String [LiteralIdentifier]
-                | EExpr Expression
-                | CaseOf Expression [Branch]
-                    deriving (Show)
 
 data ArithmBinOpNEW = Plus
                  | Minus
@@ -57,6 +49,16 @@ showIndented indentLevel (Branch s a) =
                 replicate (indentLevel * 4) ' ' ++ "Branch " ++ show s ++ " (" ++ show a ++ ")"
 
 showBranch indentLevel branch = showIndented indentLevel branch
+
+data Expression = Neg Expression
+                | VarExpr LiteralIdentifier
+                | LiteralExpr LiteralIdentifier
+                | ArithmeticBinaryExpr ArithmBinOpNEW Expression Expression
+                | List [LiteralIdentifier]
+                | FunctionCallNew String [LiteralIdentifier]
+                | EExpr Expression
+                | CaseOf Expression [Branch]
+                    deriving (Show)
             
 data Stmt = Sequence [Stmt]
           | LetIn Stmt Stmt
