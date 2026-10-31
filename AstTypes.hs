@@ -1,31 +1,54 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+
 module AstTypes
   ( PrimitiveType(..)
   , TypedLiteral(..)
-  , TypedBinaryOp(..)
+  , UnaryOp(..)
+  , BinaryOp(..)
   , TypedExpr(..)
+  , FunctionSig(..)
+  , TypedFunction(..)
+  , TypedProgram(..)
   , TypeError(..)
-  , CanonicalFunction(..)
-  , CanonicalBinding(..)
-  , CanonicalProgram(..)
+  , encodeProgram
+  , writeProgramJson
   ) where
 
+import GHC.Generics
+import Data.Aeson
+import qualified Data.ByteString.Lazy as BL
+
+-- Primitive types used by the typed frontend and LLVM backend.
 data PrimitiveType
   = TInt32
   | TFloat
   | TBool
   | TString
   | TList PrimitiveType
+  | TFunction [PrimitiveType] PrimitiveType
   | TUnknown
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
+instance ToJSON PrimitiveType
+instance FromJSON PrimitiveType
+
+-- Concrete literal values emitted by the parser and then typed.
 data TypedLiteral
   = TLInt Integer
   | TLFloat Double
   | TLBool Bool
   | TLString String
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
-data TypedBinaryOp
+instance ToJSON TypedLiteral
+instance FromJSON TypedLiteral
+
+data UnaryOp = Neg | Not deriving (Eq, Show, Generic)
+instance ToJSON UnaryOp
+instance FromJSON UnaryOp
+
+data BinaryOp
   = Add
   | Sub
   | Mul
@@ -38,39 +61,65 @@ data TypedBinaryOp
   | Ge
   | And
   | Or
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
+instance ToJSON BinaryOp
+instance FromJSON BinaryOp
+
+-- Typed IR expressions: every node carries a result type.
 data TypedExpr
   = TLiteral TypedLiteral
   | TVariable String PrimitiveType
-  | TNeg TypedExpr PrimitiveType
-  | TBinary TypedBinaryOp TypedExpr TypedExpr PrimitiveType
+  | TUnary UnaryOp TypedExpr PrimitiveType
+  | TBinary BinaryOp TypedExpr TypedExpr PrimitiveType
   | TCall String [TypedExpr] PrimitiveType
   | TIf TypedExpr TypedExpr TypedExpr PrimitiveType
-  | TListLit [TypedExpr] PrimitiveType
   | TLet String TypedExpr TypedExpr PrimitiveType
-  deriving (Eq, Show)
+  | TListLit [TypedExpr] PrimitiveType
+  deriving (Eq, Show, Generic)
+
+instance ToJSON TypedExpr
+instance FromJSON TypedExpr
 
 data TypeError
   = UnknownVariable String
   | TypeMismatch PrimitiveType PrimitiveType String
   | InvalidOperation String
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
-data CanonicalFunction = CanonicalFunction
-  { cfName :: String
-  , cfParams :: [(String, PrimitiveType)]
-  , cfReturnType :: PrimitiveType
-  , cfBody :: TypedExpr
-  } deriving (Eq, Show)
+instance ToJSON TypeError
+instance FromJSON TypeError
 
-data CanonicalBinding = CanonicalBinding
-  { cbName :: String
-  , cbType :: PrimitiveType
-  , cbValue :: TypedExpr
-  } deriving (Eq, Show)
+-- Function signatures and typed functions.
+data FunctionSig = FunctionSig
+  { fsName :: String
+  , fsParams :: [(String, PrimitiveType)]
+  , fsReturnType :: PrimitiveType
+  } deriving (Eq, Show, Generic)
 
-data CanonicalProgram = CanonicalProgram
-  { cpFunctions :: [CanonicalFunction]
-  , cpBindings :: [CanonicalBinding]
-  } deriving (Eq, Show)
+instance ToJSON FunctionSig
+instance FromJSON FunctionSig
+
+data TypedFunction = TypedFunction
+  { tfSig :: FunctionSig
+  , tfBody :: TypedExpr
+  } deriving (Eq, Show, Generic)
+
+instance ToJSON TypedFunction
+instance FromJSON TypedFunction
+
+-- Top-level typed program used by the downstream C++ LLVM backend.
+data TypedProgram = TypedProgram
+  { tpFunctions :: [TypedFunction]
+  , tpBindings :: [(String, PrimitiveType, TypedExpr)]
+  } deriving (Eq, Show, Generic)
+
+instance ToJSON TypedProgram
+instance FromJSON TypedProgram
+
+-- JSON export helpers for the C++ backend.
+encodeProgram :: TypedProgram -> BL.ByteString
+encodeProgram = Data.Aeson.encode
+
+writeProgramJson :: FilePath -> TypedProgram -> IO ()
+writeProgramJson path prog = BL.writeFile path (encodeProgram prog)

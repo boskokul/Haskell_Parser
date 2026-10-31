@@ -5,30 +5,29 @@ module Desugar
 
 import AstTypes
 
--- A conservative canonicalization pass that keeps semantics explicit for LLVM lowering.
+-- Conservative desugaring pass that normalizes typed expressions into a canonical form.
 desugarExpr :: TypedExpr -> TypedExpr
 desugarExpr expr =
   case expr of
-    TNeg inner typ -> TNeg (desugarExpr inner) typ
-    TBinary op left right typ -> TBinary op (desugarExpr left) (desugarExpr right) typ
-    TIf cond thenBranch elseBranch typ ->
-      TIf (desugarExpr cond) (desugarExpr thenBranch) (desugarExpr elseBranch) typ
-    TListLit elems typ -> TListLit (map desugarExpr elems) typ
-    TLet name value body typ -> TLet name (desugarExpr value) (desugarExpr body) typ
-    TCall name args typ -> TCall name (map desugarExpr args) typ
+    TUnary op inner ty -> TUnary op (desugarExpr inner) ty
+    TBinary op left right ty -> TBinary op (desugarExpr left) (desugarExpr right) ty
+    TCall name args ty -> TCall name (map desugarExpr args) ty
+    TIf cond thenBranch elseBranch ty ->
+      TIf (desugarExpr cond) (desugarExpr thenBranch) (desugarExpr elseBranch) ty
+    TLet name value body ty -> TLet name (desugarExpr value) (desugarExpr body) ty
+    TListLit elems ty -> TListLit (map desugarExpr elems) ty
     _ -> expr
 
-desugarProgram :: CanonicalProgram -> CanonicalProgram
-desugarProgram (CanonicalProgram funcs binds) =
-  CanonicalProgram
-    { cpFunctions = map desugarFunction funcs
-    , cpBindings = map desugarBinding binds
+desugarProgram :: TypedProgram -> TypedProgram
+desugarProgram prog =
+  TypedProgram
+    { tpFunctions = map desugarFunction (tpFunctions prog)
+    , tpBindings = map desugarBinding (tpBindings prog)
     }
 
-desugarFunction :: CanonicalFunction -> CanonicalFunction
-desugarFunction (CanonicalFunction name params ret body) =
-  CanonicalFunction name params ret (desugarExpr body)
+desugarFunction :: TypedFunction -> TypedFunction
+desugarFunction (TypedFunction sig body) =
+  TypedFunction sig (desugarExpr body)
 
-desugarBinding :: CanonicalBinding -> CanonicalBinding
-desugarBinding (CanonicalBinding name ty value) =
-  CanonicalBinding name ty (desugarExpr value)
+desugarBinding :: (String, PrimitiveType, TypedExpr) -> (String, PrimitiveType, TypedExpr)
+desugarBinding (name, ty, value) = (name, ty, desugarExpr value)
