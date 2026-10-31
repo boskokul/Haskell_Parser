@@ -1,3 +1,6 @@
+-- TypeInfer.hs
+-- Stage 2: type inference and validation.
+-- This pass walks the typed expression tree and validates type correctness before lowering.
 module TypeInfer
   ( lowerProgram
   , inferProgram

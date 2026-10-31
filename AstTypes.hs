@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
+-- AstTypes.hs
+-- This module defines the canonical typed AST used by the compiler frontend.
+-- It is the contract between the Haskell frontend and the downstream C++ LLVM backend.
 module AstTypes
   ( PrimitiveType(..)
   , TypedLiteral(..)

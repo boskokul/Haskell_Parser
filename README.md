@@ -1,55 +1,138 @@
 # Haskell_Parser
 
-This repository now includes a typed AST audit layer to support LLVM lowering work.
+This repository implements the frontend half of a custom compiler pipeline:
 
-## What is included
+Frontend (Haskell parser + type checker) -> Canonical Typed AST -> JSON Contract -> Backend (C++ LLVM, upcoming)
 
-- `AstTypes.hs`: explicit primitive type system and canonical AST model
-- `TypeInfer.hs`: type checking / inference pass for typed expressions
-- `Desugar.hs`: canonicalization pass for LLVM-friendly lowering
-- `SerializeAst.hs`: serializer for downstream C++ compiler tooling
+The goal of this branch is to stabilize the Haskell-side compiler frontend before moving to the native backend. The parser reads a small custom language, performs type inference, normalizes the AST via a conservative desugaring pass, and emits a JSON file that a downstream C++ LLVM backend can consume.
 
-## Why this matters
+## Repository architecture
 
-The original parser is a useful front-end prototype, but it mixes parsing, expression structure, and type metadata in a way that is not ideal for LLVM lowering. The new modules deliberately keep the legacy parser intact while introducing a typed canonical layer suitable for code generation.
+### 1. Frontend parser
+- `hsParser.hs` contains the raw parser AST and grammar for the custom source language.
+- It handles literals, arithmetic expressions, function-like syntax, and control-flow constructs such as `if` and `case`.
 
-## How to verify
+### 2. Canonical typed AST
+- `AstTypes.hs` defines the compiler-facing typed representation.
+- It models primitive types (`Int32`, `Float`, `Bool`, `String`), typed literals, typed expressions, function signatures, and the top-level program representation used by the backend.
 
-1. Build the legacy parser:
+### 3. Type inference and checking
+- `TypeInfer.hs` validates the typed expressions and ensures that operations are type-correct.
+- It infers result types for arithmetic, logical operators, list literals, and function calls.
 
-   ghc --make hsParser.hs
+### 4. Desugaring / normalization
+- `Desugar.hs` normalizes the typed expressions into a canonical form that is easier to consume in later backend stages.
+- This is intentionally conservative: it preserves semantics while simplifying the structure.
 
-2. Run the parser against the sample language file:
+### 5. JSON contract for the backend
+- `AstTypes.hs` includes `ToJSON`/`FromJSON` support for the typed AST.
+- `Main.hs` writes `typed_ast.json`, which is the contract used by the future C++ LLVM backend.
 
-   ./hsParser testLanguage.hs
+## Local build options
 
-3. Confirm the parser still emits output to `parsed.txt`.
+The repository is currently a compact Haskell project built with GHC directly, but it can also be wrapped by Cabal or Stack if preferred.
 
-4. Build the new typed pipeline:
+### Build with GHC directly
 
-   ghc --make AstTypes.hs TypeInfer.hs Desugar.hs SerializeAst.hs
+```bash
+ghc -O0 -o compiler Main.hs HsParser.hs AstTypes.hs TypeInfer.hs Desugar.hs
+```
 
-5. Smoke-test the type inference pipeline in GHCi or a small script:
+### Optional Cabal / Stack workflow
 
-   Prelude> let expr = TBinary Add (TLiteral (TLInt 3)) (TLiteral (TLInt 4)) TInt32
-   Prelude> inferExpr [] expr
-   Right (TBinary Add (TLiteral (TLInt 3)) (TLiteral (TLInt 4)) TInt32)
+If you prefer package-driven builds, create a simple `cabal.project` or `stack.yaml` in the repo root and then run:
 
-6. Confirm a mismatch is rejected:
+```bash
+cabal build
+```
 
-   Prelude> inferExpr [] (TBinary Add (TLiteral (TLInt 3)) (TLiteral (TLBool True)) TInt32)
-   Left (TypeMismatch TInt32 TBool ...)
+or
 
-## Design notes
+```bash
+stack build
+```
 
-- The original parser remains usable without a large rewrite.
-- The typed pipeline is intentionally additive and conservative.
-- The canonical AST is structured to make the next compiler stages easier:
-  - type validation
-  - desugaring
-  - lowering to LLVM IR
-  - backend serialization
+## Running the frontend
 
-## Recommended next step
+The CLI entry point is `Main.hs`.
 
-The next increment should be to connect this canonical type-checked AST to a concrete C++ AST reader and then generate LLVM IR with `llvm::IRBuilder`.
+Usage:
+
+```bash
+./compiler <input-file> [output-json]
+```
+
+Example:
+
+```bash
+./compiler test.prog typed_ast.json
+```
+
+This will:
+- parse the custom language source file
+- lower it into a typed AST
+- infer and validate types
+- desugar the AST to canonical form
+- emit `typed_ast.json`
+
+## Example input
+
+Create a sample program like this:
+
+```text
+add a b = a + b
+x = 3 + 4
+flag = if x > 5 then True else False
+```
+
+Then run:
+
+```bash
+./compiler test.prog typed_ast.json
+```
+
+If successful, the output file `typed_ast.json` should exist and be non-empty.
+
+## What is generated
+
+The JSON output is a typed, machine-readable AST with the following shape:
+
+```json
+{
+  "tpFunctions": [
+    {
+      "tfSig": {
+        "fsName": "add",
+        "fsParams": [["a", "Int32"], ["b", "Int32"]],
+        "fsReturnType": "Int32"
+      },
+      "tfBody": {
+        "kind": "Binary",
+        "op": "Add",
+        "left": {"kind": "Variable", "name": "a"},
+        "right": {"kind": "Variable", "name": "b"}
+      }
+    }
+  ],
+  "tpBindings": []
+}
+```
+
+## Next steps
+
+The typed AST frontend is complete enough to hand off to the C++ LLVM backend. The next phase is:
+
+1. Read `typed_ast.json` in C++.
+2. Reconstruct the typed AST in C++ memory.
+3. Lower the typed IR into LLVM IR using `llvm::IRBuilder`.
+4. Add optimization passes and a JIT / codegen pipeline.
+
+## Local verification script
+
+A convenience script is included at the repo root:
+
+```bash
+./verify.sh
+```
+
+This script compiles the Haskell frontend, writes a sample source file if needed, runs the CLI, and validates that `typed_ast.json` is created successfully.

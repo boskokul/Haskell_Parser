@@ -1,3 +1,6 @@
+-- Desugar.hs
+-- Stage 3: canonicalization pass.
+-- This pass normalizes ancestors like conditionals and calls into a more backend-friendly form.
 module Desugar
   ( desugarExpr
   , desugarProgram
@@ -5,7 +8,7 @@ module Desugar
 
 import AstTypes
 
--- Conservative desugaring pass that normalizes typed expressions into a canonical form.
+-- Conservative desugaring pass that normalizes typed expressions into a backend-friendly form.
 desugarExpr :: TypedExpr -> TypedExpr
 desugarExpr expr =
   case expr of

@@ -1,3 +1,6 @@
+-- Main.hs
+-- Stage 4: CLI entry point for the Haskell frontend.
+-- Parses a source file, converts it to typed AST, infers types, and writes JSON for the backend.
 module Main where
 
 import qualified HsParser
@@ -8,7 +11,7 @@ import System.Environment (getArgs)
 import System.Exit (exitFailure)
 
 usage :: String
-usage = "Usage: ./compiler <input-file> [output-json]\nExample: ./compiler testLanguage.hs typed_ast.json"
+usage = "Usage: ./compiler <input-file> [output-json]\nExample: ./compiler test.prog typed_ast.json"
 
 main :: IO ()
 main = do
