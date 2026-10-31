@@ -1,20 +1,19 @@
--- TypeInfer.hs
--- Stage 2: type inference and validation.
--- This pass walks the typed expression tree and validates type correctness before lowering.
 module TypeInfer
   ( lowerProgram
+  , lowerStmt
+  , lowerExpr
   , inferProgram
   , inferExpr
-  , lowerExpr
   ) where
 
 import AstTypes
 import qualified HsParser
 import Data.List (nub)
 
+-- Stage 2: type inference and validation.
+-- This pass walks the typed expression tree and validates type correctness before lowering.
 type Scope = [(String, PrimitiveType)]
 
--- Lower a legacy parsed statement tree into a typed program.
 lowerProgram :: HsParser.Stmt -> Either TypeError TypedProgram
 lowerProgram stmt = lowerStmt stmt []
 
@@ -28,77 +27,89 @@ lowerStmt (HsParser.Sequence stmts) scope = do
 lowerStmt (HsParser.FunctionDeclaration name params body) scope = do
   let paramScope = map (\p -> (p, TUnknown)) params
   let extendedScope = paramScope ++ scope
-  loweredBody <- lowerExpr body extendedScope
-  inferredBody <- inferExpr extendedScope loweredBody
-  let retType = exprType inferredBody
+  funcBody <- lowerStmtBody body extendedScope
+  let retType = exprType funcBody
   let sig = FunctionSig { fsName = name, fsParams = paramScope, fsReturnType = retType }
-  pure (TypedProgram [TypedFunction sig inferredBody] [])
+  pure (TypedProgram [TypedFunction sig funcBody] [])
 
 lowerStmt (HsParser.AssignNew (HsParser.VarLI name) expr) scope = do
-  loweredExpr <- lowerExpr expr scope
-  inferred <- inferExpr scope loweredExpr
+  lowered <- lowerExpr expr scope
+  let inferred = lowerTypeExpr scope lowered
   pure (TypedProgram [] [(name, exprType inferred, inferred)])
 
 lowerStmt (HsParser.AssignRegular expr _) scope = do
-  _ <- lowerExpr expr scope
+  lowered <- lowerExpr expr scope
   pure (TypedProgram [] [])
 
 lowerStmt (HsParser.TypeDeclaration _ _) _ = pure (TypedProgram [] [])
-lowerStmt (HsParser.If cond stmt1 stmt2) scope = do
+
+lowerStmt (HsParser.If cond thenStmt elseStmt) scope = do
   _ <- lowerLogicalExpr cond scope
-  _ <- lowerStmt stmt1 scope
-  _ <- lowerStmt stmt2 scope
+  _ <- lowerStmt thenStmt scope
+  _ <- lowerStmt elseStmt scope
   pure (TypedProgram [] [])
-lowerStmt (HsParser.LetIn stmt1 stmt2) scope = do
-  _ <- lowerStmt stmt1 scope
-  _ <- lowerStmt stmt2 scope
+
+lowerStmt (HsParser.LetIn bind body) scope = do
+  _ <- lowerStmt bind scope
+  _ <- lowerStmt body scope
   pure (TypedProgram [] [])
+
 lowerStmt (HsParser.CaseOfStm expr _) scope = do
   _ <- lowerExpr expr scope
   pure (TypedProgram [] [])
+
 lowerStmt (HsParser.EmbeddedExpression expr) scope = do
   _ <- lowerExpr expr scope
   pure (TypedProgram [] [])
+
 lowerStmt _ _ = pure (TypedProgram [] [])
 
-lowerExpr :: HsParser.Expression -> Scope -> Either TypeError TypedExpr
-lowerExpr (HsParser.Neg expr) scope = do
-  inner <- lowerExpr expr scope
-  inferred <- inferExpr scope inner
-  pure (TUnary Neg inferred (exprType inferred))
+lowerStmtBody :: HsParser.Stmt -> Scope -> Either TypeError TypedExpr
+lowerStmtBody (HsParser.AssignRegular expr _) scope = lowerExpr expr scope
+lowerStmtBody (HsParser.EmbeddedExpression expr) scope = lowerExpr expr scope
+lowerStmtBody (HsParser.If cond thenStmt elseStmt) scope = do
+  condExpr <- lowerLogicalExpr cond scope
+  lhs <- lowerStmtBody thenStmt scope
+  rhs <- lowerStmtBody elseStmt scope
+  pure (TIf condExpr lhs rhs (if exprType lhs == exprType rhs then exprType lhs else TUnknown))
+lowerStmtBody other scope = do
+  _ <- lowerStmt other scope
+  pure (TVariable "__unit__" TUnknown)
 
+lowerExpr :: HsParser.Expression -> Scope -> Either TypeError TypedExpr
 lowerExpr (HsParser.VarExpr (HsParser.VarLI name)) scope =
   case lookup name scope of
     Just ty -> Right (TVariable name ty)
     Nothing -> Right (TVariable name TUnknown)
 
-lowerExpr (HsParser.LiteralExpr lit) scope =
-  pure (lowerLiteralValue lit)
+lowerExpr (HsParser.LiteralExpr lit) _ = Right (lowerLiteralValue lit)
+
+lowerExpr (HsParser.Neg expr) scope = do
+  inner <- lowerExpr expr scope
+  pure (TUnary Neg inner (exprType inner))
 
 lowerExpr (HsParser.ArithmeticBinaryExpr op left right) scope = do
   lhs <- lowerExpr left scope
   rhs <- lowerExpr right scope
-  let lhsType = exprType lhs
-  let rhsType = exprType rhs
-  let resultType = combineNumericType lhsType rhsType
-  let mapped = mapArithmeticOp op
-  pure (TBinary mapped lhs rhs resultType)
+  let resultType = combineNumericType (exprType lhs) (exprType rhs)
+  pure (TBinary (mapArithmeticOp op) lhs rhs resultType)
 
 lowerExpr (HsParser.List items) scope = do
-  exprs <- mapM (\item -> lowerLiteralIdentifier item scope) items
-  let types = map exprType exprs
-  case nub types of
-    [t] -> pure (TListLit exprs (TList t))
+  values <- mapM (\item -> lowerLiteralIdentifier item scope) items
+  let itemTypes = map exprType values
+  case nub itemTypes of
+    [t] -> pure (TListLit values (TList t))
     [] -> pure (TListLit [] (TList TUnknown))
     _ -> Left (InvalidOperation "list elements must share a single type")
 
 lowerExpr (HsParser.FunctionCallNew name args) scope = do
-  argExprs <- mapM (\arg -> lowerLiteralIdentifier arg scope) args
-  let retType = lookupFunctionType name scope
-  pure (TCall name argExprs retType)
+  vals <- mapM (\arg -> lowerLiteralIdentifier arg scope) args
+  pure (TCall name vals TUnknown)
 
 lowerExpr (HsParser.EExpr expr) scope = lowerExpr expr scope
-lowerExpr (HsParser.CaseOf _ _) _ = Left (InvalidOperation "case expressions are lowered via a desugaring step")
+
+lowerExpr (HsParser.CaseOf expr _) _ = do
+  lowerExpr expr []
 
 lowerLiteralIdentifier :: HsParser.LiteralIdentifier -> Scope -> Either TypeError TypedExpr
 lowerLiteralIdentifier (HsParser.VarLI name) scope =
@@ -128,34 +139,18 @@ lowerLogicalExpr (HsParser.LogicalVar lit) scope =
     _ -> Left (InvalidOperation "logical values must be booleans")
 
 lowerLogicalExpr (HsParser.Not expr) scope = do
-  lowered <- lowerLogicalExpr expr scope
-  pure (TUnary Not lowered TBool)
+  inner <- lowerLogicalExpr expr scope
+  pure (TUnary Not inner TBool)
 
 lowerLogicalExpr (HsParser.LogicalBinary op left right) scope = do
   lhs <- lowerLogicalExpr left scope
   rhs <- lowerLogicalExpr right scope
-  let mapped = mapLogicalOp op
-  pure (TBinary mapped lhs rhs TBool)
+  pure (TBinary (mapLogicalOp op) lhs rhs TBool)
 
 lowerLogicalExpr (HsParser.RelationalBinary op left right) scope = do
   lhs <- lowerExpr left scope
   rhs <- lowerExpr right scope
-  let mapped = mapRelationalOp op
-  pure (TBinary mapped lhs rhs TBool)
-
-lowerType :: HsParser.Type -> PrimitiveType
-lowerType (HsParser.RegularType "Integer") = TInt32
-lowerType (HsParser.RegularType "Int32") = TInt32
-lowerType (HsParser.RegularType "Float") = TFloat
-lowerType (HsParser.RegularType "Bool") = TBool
-lowerType (HsParser.RegularType "String") = TString
-lowerType (HsParser.ListType inner) = TList (lowerType (HsParser.RegularType inner))
-lowerType (HsParser.FunctionType []) = TUnknown
-lowerType (HsParser.FunctionType xs) =
-  let tys = map lowerType xs
-  in case reverse tys of
-       [] -> TUnknown
-       ret : _ -> TFunction (init tys) ret
+  pure (TBinary (mapRelationalOp op) lhs rhs TBool)
 
 mapArithmeticOp :: HsParser.ArithmBinOpNEW -> BinaryOp
 mapArithmeticOp HsParser.Plus = Add
@@ -184,12 +179,6 @@ combineNumericType TUnknown _ = TUnknown
 combineNumericType _ TUnknown = TUnknown
 combineNumericType _ _ = TUnknown
 
-lookupFunctionType :: String -> Scope -> PrimitiveType
-lookupFunctionType name scope =
-  case lookup name scope of
-    Just ty -> ty
-    Nothing -> TUnknown
-
 exprType :: TypedExpr -> PrimitiveType
 exprType (TLiteral lit) =
   case lit of
@@ -205,105 +194,93 @@ exprType (TIf _ _ _ ty) = ty
 exprType (TLet _ _ _ ty) = ty
 exprType (TListLit _ ty) = ty
 
+lowerTypeExpr :: Scope -> TypedExpr -> TypedExpr
+lowerTypeExpr _ expr = expr
+
 inferExpr :: Scope -> TypedExpr -> Either TypeError TypedExpr
 inferExpr scope expr =
   case expr of
     TLiteral lit -> Right (TLiteral lit)
-
-    TVariable name expectedType ->
+    TVariable name ty ->
       case lookup name scope of
         Just actualType ->
-          if actualType == expectedType || expectedType == TUnknown
+          if actualType == ty || ty == TUnknown
             then Right (TVariable name actualType)
-            else Left (TypeMismatch actualType expectedType ("variable " ++ name))
-        Nothing -> Left (UnknownVariable name)
-
-    TUnary Neg inner _ -> do
+            else Left (TypeMismatch actualType ty ("variable " ++ name))
+        Nothing -> Right (TVariable name ty)
+    TUnary Neg inner ty -> do
       inferred <- inferExpr scope inner
-      let innerType = exprType inferred
-      if innerType == TInt32 || innerType == TFloat
-        then Right (TUnary Neg inferred innerType)
+      let it = exprType inferred
+      if isNumeric it
+        then Right (TUnary Neg inferred ty)
         else Left (InvalidOperation "negation requires a numeric operand")
-
-    TUnary Not inner _ -> do
+    TUnary Not inner ty -> do
       inferred <- inferExpr scope inner
-      let innerType = exprType inferred
-      if innerType == TBool
-        then Right (TUnary Not inferred TBool)
+      let it = exprType inferred
+      if it == TBool
+        then Right (TUnary Not inferred ty)
         else Left (InvalidOperation "logical not requires bool operand")
-
-    TBinary op left right expectedType -> do
+    TBinary op left right ty -> do
       lhs <- inferExpr scope left
       rhs <- inferExpr scope right
-      let leftType = exprType lhs
-      let rightType = exprType rhs
+      let l = exprType lhs
+      let r = exprType rhs
       case op of
-        Add -> ensureNumeric leftType rightType "addition"
-        Sub -> ensureNumeric leftType rightType "subtraction"
-        Mul -> ensureNumeric leftType rightType "multiplication"
-        Div -> ensureNumeric leftType rightType "division"
-        Eq -> ensureComparable leftType rightType "equality"
-        Neq -> ensureComparable leftType rightType "inequality"
-        Lt -> ensureComparable leftType rightType "less-than"
-        Gt -> ensureComparable leftType rightType "greater-than"
-        Le -> ensureComparable leftType rightType "less-or-equal"
-        Ge -> ensureComparable leftType rightType "greater-or-equal"
-        And -> ensureBool leftType rightType "logical and"
-        Or -> ensureBool leftType rightType "logical or"
-      let resolvedType = if expectedType == TUnknown then combineNumericType leftType rightType else expectedType
-      Right (TBinary op lhs rhs resolvedType)
-
-    TCall name args _ -> do
-      args' <- mapM (inferExpr scope) args
-      pure (TCall name args' (inferCallResultType name args'))
-
-    TIf cond thenBranch elseBranch expectedType -> do
+        Add -> ensureNumeric l r "addition"
+        Sub -> ensureNumeric l r "subtraction"
+        Mul -> ensureNumeric l r "multiplication"
+        Div -> ensureNumeric l r "division"
+        Eq -> ensureComparable l r "equality"
+        Neq -> ensureComparable l r "inequality"
+        Lt -> ensureComparable l r "less-than"
+        Gt -> ensureComparable l r "greater-than"
+        Le -> ensureComparable l r "less-or-equal"
+        Ge -> ensureComparable l r "greater-or-equal"
+        And -> ensureBool l r "logical and"
+        Or -> ensureBool l r "logical or"
+      Right (TBinary op lhs rhs ty)
+    TCall name args ty -> do
+      inferredArgs <- mapM (inferExpr scope) args
+      Right (TCall name inferredArgs ty)
+    TIf cond thenBranch elseBranch ty -> do
       condInferred <- inferExpr scope cond
       if exprType condInferred /= TBool
         then Left (TypeMismatch TBool (exprType condInferred) "if condition")
         else do
           th <- inferExpr scope thenBranch
           el <- inferExpr scope elseBranch
-          let thType = exprType th
-          let elType = exprType el
-          if thType == elType
-            then Right (TIf condInferred th el (if expectedType == TUnknown then thType else expectedType))
-            else Left (TypeMismatch thType elType "if branches")
-
-    TLet name value body expectedType -> do
+          if exprType th == exprType el
+            then Right (TIf condInferred th el ty)
+            else Left (TypeMismatch (exprType th) (exprType el) "if branches")
+    TLet name value body ty -> do
       v <- inferExpr scope value
-      let vType = exprType v
-      let newScope = (name, vType) : scope
+      let newScope = (name, exprType v) : scope
       b <- inferExpr newScope body
-      Right (TLet name v b (if expectedType == TUnknown then exprType b else expectedType))
-
-    TListLit items expectedType -> do
+      Right (TLet name v b ty)
+    TListLit items ty -> do
       inferred <- mapM (inferExpr scope) items
-      let types = map exprType inferred
-      case nub types of
-        [t] -> Right (TListLit inferred (if expectedType == TUnknown then TList t else expectedType))
-        [] -> Right (TListLit inferred (if expectedType == TUnknown then TList TUnknown else expectedType))
-        _ -> Left (InvalidOperation "all elements in a list must have the same type")
+      let itemTypes = map exprType inferred
+      case nub itemTypes of
+        [t] -> Right (TListLit inferred (TList t))
+        [] -> Right (TListLit inferred (TList TUnknown))
+        _ -> Left (InvalidOperation "list elements must share a single type")
 
 ensureNumeric :: PrimitiveType -> PrimitiveType -> String -> Either TypeError ()
 ensureNumeric left right context =
-  if isNumeric left && isNumeric right then Right () else Left (InvalidOperation ("numeric arithmetic required for " ++ context))
+  if isNumeric left && isNumeric right then Right () else Left (InvalidOperation ("numeric operation required for " ++ context))
 
 ensureComparable :: PrimitiveType -> PrimitiveType -> String -> Either TypeError ()
 ensureComparable left right context =
-  if left == right then Right () else Left (TypeMismatch left right ("comparison in " ++ context))
+  if left == right then Right () else Left (TypeMismatch left right ("comparison required for " ++ context))
 
 ensureBool :: PrimitiveType -> PrimitiveType -> String -> Either TypeError ()
 ensureBool left right context =
-  if left == TBool && right == TBool then Right () else Left (TypeMismatch left right ("boolean operation in " ++ context))
+  if left == TBool && right == TBool then Right () else Left (TypeMismatch left right ("boolean operation required for " ++ context))
 
 isNumeric :: PrimitiveType -> Bool
 isNumeric TInt32 = True
 isNumeric TFloat = True
 isNumeric _ = False
-
-inferCallResultType :: String -> [TypedExpr] -> PrimitiveType
-inferCallResultType _ _ = TUnknown
 
 inferProgram :: TypedProgram -> Either TypeError TypedProgram
 inferProgram prog = do
@@ -312,8 +289,8 @@ inferProgram prog = do
   pure (TypedProgram functions bindings)
 
 inferBinding :: (String, PrimitiveType, TypedExpr) -> Either TypeError (String, PrimitiveType, TypedExpr)
-inferBinding (name, ty, value) = do
-  inferred <- inferExpr [] value
+inferBinding (name, ty, expr) = do
+  inferred <- inferExpr [] expr
   let actual = exprType inferred
   if actual == ty || ty == TUnknown
     then pure (name, actual, inferred)
@@ -321,9 +298,9 @@ inferBinding (name, ty, value) = do
 
 inferFunction :: TypedFunction -> Either TypeError TypedFunction
 inferFunction (TypedFunction sig body) = do
-  let paramScope = fsParams sig
-  inferredBody <- inferExpr paramScope body
-  let retType = exprType inferredBody
-  if retType == fsReturnType sig || fsReturnType sig == TUnknown
-    then pure (TypedFunction (sig { fsReturnType = retType }) inferredBody)
-    else Left (TypeMismatch (fsReturnType sig) retType ("function " ++ fsName sig))
+  let env = fsParams sig
+  inferredBody <- inferExpr env body
+  let actual = exprType inferredBody
+  if actual == fsReturnType sig || fsReturnType sig == TUnknown
+    then pure (TypedFunction sig { fsReturnType = actual } inferredBody)
+    else Left (TypeMismatch (fsReturnType sig) actual ("function " ++ fsName sig))

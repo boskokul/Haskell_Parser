@@ -11,7 +11,7 @@ fi
 
 mkdir -p "$EXAMPLES_DIR"
 
-ghc -O0 -o "$TARGET" Main.hs HsParser.hs AstTypes.hs TypeInfer.hs Desugar.hs
+ghc -O0 -o "$TARGET" Main.hs hsParser.hs AstTypes.hs TypeInfer.hs
 
 shopt -s nullglob
 for src in "$EXAMPLES_DIR"/*.prog; do

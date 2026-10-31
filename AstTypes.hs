@@ -1,9 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
--- AstTypes.hs
--- This module defines the canonical typed AST used by the compiler frontend.
--- It is the contract between the Haskell frontend and the downstream C++ LLVM backend.
 module AstTypes
   ( PrimitiveType(..)
   , TypedLiteral(..)
@@ -19,8 +16,7 @@ module AstTypes
   ) where
 
 import GHC.Generics
-import Data.Aeson
-import qualified Data.ByteString.Lazy as BL
+import Data.List (intercalate)
 
 -- Primitive types used by the typed frontend and LLVM backend.
 data PrimitiveType
@@ -33,9 +29,6 @@ data PrimitiveType
   | TUnknown
   deriving (Eq, Show, Generic)
 
-instance ToJSON PrimitiveType
-instance FromJSON PrimitiveType
-
 -- Concrete literal values emitted by the parser and then typed.
 data TypedLiteral
   = TLInt Integer
@@ -44,12 +37,7 @@ data TypedLiteral
   | TLString String
   deriving (Eq, Show, Generic)
 
-instance ToJSON TypedLiteral
-instance FromJSON TypedLiteral
-
 data UnaryOp = Neg | Not deriving (Eq, Show, Generic)
-instance ToJSON UnaryOp
-instance FromJSON UnaryOp
 
 data BinaryOp
   = Add
@@ -66,9 +54,6 @@ data BinaryOp
   | Or
   deriving (Eq, Show, Generic)
 
-instance ToJSON BinaryOp
-instance FromJSON BinaryOp
-
 -- Typed IR expressions: every node carries a result type.
 data TypedExpr
   = TLiteral TypedLiteral
@@ -81,17 +66,11 @@ data TypedExpr
   | TListLit [TypedExpr] PrimitiveType
   deriving (Eq, Show, Generic)
 
-instance ToJSON TypedExpr
-instance FromJSON TypedExpr
-
 data TypeError
   = UnknownVariable String
   | TypeMismatch PrimitiveType PrimitiveType String
   | InvalidOperation String
   deriving (Eq, Show, Generic)
-
-instance ToJSON TypeError
-instance FromJSON TypeError
 
 -- Function signatures and typed functions.
 data FunctionSig = FunctionSig
@@ -100,16 +79,10 @@ data FunctionSig = FunctionSig
   , fsReturnType :: PrimitiveType
   } deriving (Eq, Show, Generic)
 
-instance ToJSON FunctionSig
-instance FromJSON FunctionSig
-
 data TypedFunction = TypedFunction
   { tfSig :: FunctionSig
   , tfBody :: TypedExpr
   } deriving (Eq, Show, Generic)
-
-instance ToJSON TypedFunction
-instance FromJSON TypedFunction
 
 -- Top-level typed program used by the downstream C++ LLVM backend.
 data TypedProgram = TypedProgram
@@ -117,12 +90,69 @@ data TypedProgram = TypedProgram
   , tpBindings :: [(String, PrimitiveType, TypedExpr)]
   } deriving (Eq, Show, Generic)
 
-instance ToJSON TypedProgram
-instance FromJSON TypedProgram
+-- Minimal JSON encoding for the typed AST without external package dependencies.
+jsonString :: String -> String
+jsonString s = '"' : concatMap escape s ++ "\""
+  where
+    escape '"' = "\\\""
+    escape '\\' = "\\\\"
+    escape '\n' = "\\n"
+    escape '\r' = "\\r"
+    escape '\t' = "\\t"
+    escape c = [c]
 
--- JSON export helpers for the C++ backend.
-encodeProgram :: TypedProgram -> BL.ByteString
-encodeProgram = Data.Aeson.encode
+encodePrimitiveType :: PrimitiveType -> String
+encodePrimitiveType TInt32 = "\"Int32\""
+encodePrimitiveType TFloat = "\"Float\""
+encodePrimitiveType TBool = "\"Bool\""
+encodePrimitiveType TString = "\"String\""
+encodePrimitiveType (TList t) = "{\"kind\":\"List\",\"elementType\":" ++ encodePrimitiveType t ++ "}"
+encodePrimitiveType (TFunction args ret) =
+  "{\"kind\":\"Function\",\"args\":[" ++ intercalate "," (map encodePrimitiveType args) ++ "],\"return\":" ++ encodePrimitiveType ret ++ "}"
+encodePrimitiveType TUnknown = "\"Unknown\""
+
+encodeLiteral :: TypedLiteral -> String
+encodeLiteral (TLInt n) = "{\"kind\":\"Int\",\"value\":" ++ show n ++ "}"
+encodeLiteral (TLFloat f) = "{\"kind\":\"Float\",\"value\":" ++ show f ++ "}"
+encodeLiteral (TLBool b) = "{\"kind\":\"Bool\",\"value\":" ++ if b then "true" else "false" ++ "}"
+encodeLiteral (TLString s) = "{\"kind\":\"String\",\"value\":" ++ jsonString s ++ "}"
+
+encodeTypedExpr :: TypedExpr -> String
+encodeTypedExpr expr =
+  case expr of
+    TLiteral lit -> "{\"kind\":\"Literal\",\"value\":" ++ encodeLiteral lit ++ "}"
+    TVariable name ty -> "{\"kind\":\"Variable\",\"name\":" ++ jsonString name ++ ",\"type\":" ++ encodePrimitiveType ty ++ "}"
+    TUnary op inner ty ->
+      "{\"kind\":\"Unary\",\"op\":" ++ jsonString (show op) ++ ",\"value\":" ++ encodeTypedExpr inner ++ ",\"type\":" ++ encodePrimitiveType ty ++ "}"
+    TBinary op left right ty ->
+      "{\"kind\":\"Binary\",\"op\":" ++ jsonString (show op) ++ ",\"left\":" ++ encodeTypedExpr left ++ ",\"right\":" ++ encodeTypedExpr right ++ ",\"type\":" ++ encodePrimitiveType ty ++ "}"
+    TCall name args ty ->
+      "{\"kind\":\"Call\",\"name\":" ++ jsonString name ++ ",\"args\":[" ++ intercalate "," (map encodeTypedExpr args) ++ "],\"type\":" ++ encodePrimitiveType ty ++ "}"
+    TIf cond thenBranch elseBranch ty ->
+      "{\"kind\":\"If\",\"cond\":" ++ encodeTypedExpr cond ++ ",\"then\":" ++ encodeTypedExpr thenBranch ++ ",\"else\":" ++ encodeTypedExpr elseBranch ++ ",\"type\":" ++ encodePrimitiveType ty ++ "}"
+    TLet name value body ty ->
+      "{\"kind\":\"Let\",\"name\":" ++ jsonString name ++ ",\"value\":" ++ encodeTypedExpr value ++ ",\"body\":" ++ encodeTypedExpr body ++ ",\"type\":" ++ encodePrimitiveType ty ++ "}"
+    TListLit elems ty ->
+      "{\"kind\":\"List\",\"items\":[" ++ intercalate "," (map encodeTypedExpr elems) ++ "],\"type\":" ++ encodePrimitiveType ty ++ "}"
+
+encodeFunctionSig :: FunctionSig -> String
+encodeFunctionSig sig =
+  "{\"name\":" ++ jsonString (fsName sig) ++
+  ",\"params\":[" ++ intercalate "," (map encodeParam (fsParams sig)) ++ "]\n,\"returnType\":" ++ encodePrimitiveType (fsReturnType sig) ++ "}"
+  where
+    encodeParam (name, ty) = "[" ++ jsonString name ++ "," ++ encodePrimitiveType ty ++ "]"
+
+encodeTypedFunction :: TypedFunction -> String
+encodeTypedFunction fn =
+  "{\"tfSig\":" ++ encodeFunctionSig (tfSig fn) ++ ",\"tfBody\":" ++ encodeTypedExpr (tfBody fn) ++ "}"
+
+encodeBinding :: (String, PrimitiveType, TypedExpr) -> String
+encodeBinding (name, ty, expr) =
+  "[" ++ jsonString name ++ "," ++ encodePrimitiveType ty ++ "," ++ encodeTypedExpr expr ++ "]"
+
+encodeProgram :: TypedProgram -> String
+encodeProgram prog =
+  "{\n  \"tpFunctions\": [" ++ intercalate ",\n    " (map encodeTypedFunction (tpFunctions prog)) ++ "],\n  \"tpBindings\": [" ++ intercalate ",\n    " (map encodeBinding (tpBindings prog)) ++ "]\n}"
 
 writeProgramJson :: FilePath -> TypedProgram -> IO ()
-writeProgramJson path prog = BL.writeFile path (encodeProgram prog)
+writeProgramJson path prog = writeFile path (encodeProgram prog)
