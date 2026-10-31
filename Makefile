@@ -10,6 +10,7 @@ verify: $(TARGET)
 	./verify.sh
 
 clean:
-	rm -f $(TARGET) typed_ast.json test.prog
+	rm -f $(TARGET) *.json
+	rm -rf examples/*.json
 
 .PHONY: all verify clean

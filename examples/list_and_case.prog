@@ -1,0 +1,4 @@
+s2 = [2,3]
+numToString x = case x of
+  1 -> "jedan"
+  2 -> "dva"

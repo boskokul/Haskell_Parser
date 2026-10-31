@@ -1,0 +1,2 @@
+m2 b = if True && False then b + 3 else b + 4
+maxOfTwo a b = if a >= b then a else b
